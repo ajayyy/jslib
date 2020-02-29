@@ -1,4 +1,5 @@
 import { DeviceType } from '../enums/deviceType';
+import { PolicyType } from '../enums/policyType';
 
 import { ApiService as ApiServiceAbstraction } from '../abstractions/api.service';
 import { PlatformUtilsService } from '../abstractions/platformUtils.service';
@@ -39,6 +40,7 @@ import { PasswordHintRequest } from '../models/request/passwordHintRequest';
 import { PasswordRequest } from '../models/request/passwordRequest';
 import { PasswordVerificationRequest } from '../models/request/passwordVerificationRequest';
 import { PaymentRequest } from '../models/request/paymentRequest';
+import { PolicyRequest } from '../models/request/policyRequest';
 import { PreloginRequest } from '../models/request/preloginRequest';
 import { RegisterRequest } from '../models/request/registerRequest';
 import { SeatRequest } from '../models/request/seatRequest';
@@ -87,6 +89,7 @@ import {
     OrganizationUserUserDetailsResponse,
 } from '../models/response/organizationUserResponse';
 import { PaymentResponse } from '../models/response/paymentResponse';
+import { PolicyResponse } from '../models/response/policyResponse';
 import { PreloginResponse } from '../models/response/preloginResponse';
 import { ProfileResponse } from '../models/response/profileResponse';
 import { SelectionReadOnlyResponse } from '../models/response/selectionReadOnlyResponse';
@@ -169,7 +172,7 @@ export class ApiService implements ApiServiceAbstraction {
         const response = await this.fetch(new Request(this.identityBaseUrl + '/connect/token', {
             body: this.qsStringify(request.toIdentityToken(this.platformUtilsService.identityClientId)),
             credentials: this.getCredentials(),
-            cache: 'no-cache',
+            cache: 'no-store',
             headers: headers,
             method: 'POST',
         }));
@@ -549,6 +552,23 @@ export class ApiService implements ApiServiceAbstraction {
             '/organizations/' + organizationId + '/groups/' + id + '/user/' + organizationUserId, null, true, false);
     }
 
+    // Policy APIs
+
+    async getPolicy(organizationId: string, type: PolicyType): Promise<PolicyResponse> {
+        const r = await this.send('GET', '/organizations/' + organizationId + '/policies/' + type, null, true, true);
+        return new PolicyResponse(r);
+    }
+
+    async getPolicies(organizationId: string): Promise<ListResponse<PolicyResponse>> {
+        const r = await this.send('GET', '/organizations/' + organizationId + '/policies', null, true, true);
+        return new ListResponse(r, PolicyResponse);
+    }
+
+    async putPolicy(organizationId: string, type: PolicyType, request: PolicyRequest): Promise<PolicyResponse> {
+        const r = await this.send('PUT', '/organizations/' + organizationId + '/policies/' + type, request, true, true);
+        return new PolicyResponse(r);
+    }
+
     // Organization User APIs
 
     async getOrganizationUser(organizationId: string, id: string): Promise<OrganizationUserDetailsResponse> {
@@ -868,7 +888,7 @@ export class ApiService implements ApiServiceAbstraction {
             headers.set('User-Agent', this.customUserAgent);
         }
         const response = await this.fetch(new Request(this.eventsBaseUrl + '/collect', {
-            cache: 'no-cache',
+            cache: 'no-store',
             credentials: this.getCredentials(),
             method: 'POST',
             body: JSON.stringify(request),
@@ -918,7 +938,7 @@ export class ApiService implements ApiServiceAbstraction {
 
     fetch(request: Request): Promise<Response> {
         if (request.method === 'GET') {
-            request.headers.set('Cache-Control', 'no-cache');
+            request.headers.set('Cache-Control', 'no-store');
             request.headers.set('Pragma', 'no-cache');
         }
         return this.nativeFetch(request);
@@ -938,7 +958,7 @@ export class ApiService implements ApiServiceAbstraction {
         }
 
         const requestInit: RequestInit = {
-            cache: 'no-cache',
+            cache: 'no-store',
             credentials: this.getCredentials(),
             method: method,
         };
@@ -1011,7 +1031,7 @@ export class ApiService implements ApiServiceAbstraction {
                 client_id: decodedToken.client_id,
                 refresh_token: refreshToken,
             }),
-            cache: 'no-cache',
+            cache: 'no-store',
             credentials: this.getCredentials(),
             headers: headers,
             method: 'POST',
