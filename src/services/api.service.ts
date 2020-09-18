@@ -29,6 +29,7 @@ import { ImportOrganizationCiphersRequest } from '../models/request/importOrgani
 import { KdfRequest } from '../models/request/kdfRequest';
 import { KeysRequest } from '../models/request/keysRequest';
 import { OrganizationCreateRequest } from '../models/request/organizationCreateRequest';
+import { OrganizationTaxInfoUpdateRequest } from '../models/request/organizationTaxInfoUpdateRequest';
 import { OrganizationUpdateRequest } from '../models/request/organizationUpdateRequest';
 import { OrganizationUpgradeRequest } from '../models/request/organizationUpgradeRequest';
 import { OrganizationUserAcceptRequest } from '../models/request/organizationUserAcceptRequest';
@@ -45,7 +46,9 @@ import { PreloginRequest } from '../models/request/preloginRequest';
 import { RegisterRequest } from '../models/request/registerRequest';
 import { SeatRequest } from '../models/request/seatRequest';
 import { SelectionReadOnlyRequest } from '../models/request/selectionReadOnlyRequest';
+import { SetPasswordRequest } from '../models/request/setPasswordRequest';
 import { StorageRequest } from '../models/request/storageRequest';
+import { TaxInfoUpdateRequest } from '../models/request/taxInfoUpdateRequest';
 import { TokenRequest } from '../models/request/tokenRequest';
 import { TwoFactorEmailRequest } from '../models/request/twoFactorEmailRequest';
 import { TwoFactorProviderRequest } from '../models/request/twoFactorProviderRequest';
@@ -89,12 +92,14 @@ import {
     OrganizationUserUserDetailsResponse,
 } from '../models/response/organizationUserResponse';
 import { PaymentResponse } from '../models/response/paymentResponse';
+import { PlanResponse } from '../models/response/planResponse';
 import { PolicyResponse } from '../models/response/policyResponse';
 import { PreloginResponse } from '../models/response/preloginResponse';
 import { ProfileResponse } from '../models/response/profileResponse';
 import { SelectionReadOnlyResponse } from '../models/response/selectionReadOnlyResponse';
 import { SubscriptionResponse } from '../models/response/subscriptionResponse';
 import { SyncResponse } from '../models/response/syncResponse';
+import { TaxInfoResponse } from '../models/response/taxInfoResponse';
 import { TwoFactorAuthenticatorResponse } from '../models/response/twoFactorAuthenticatorResponse';
 import { TwoFactorDuoResponse } from '../models/response/twoFactorDuoResponse';
 import { TwoFactorEmailResponse } from '../models/response/twoFactorEmailResponse';
@@ -220,9 +225,18 @@ export class ApiService implements ApiServiceAbstraction {
         return new SubscriptionResponse(r);
     }
 
+    async getTaxInfo(): Promise<TaxInfoResponse> {
+        const r = await this.send('GET', '/accounts/tax', null, true, true);
+        return new TaxInfoResponse(r);
+    }
+
     async putProfile(request: UpdateProfileRequest): Promise<ProfileResponse> {
         const r = await this.send('PUT', '/accounts/profile', request, true, true);
         return new ProfileResponse(r);
+    }
+
+    putTaxInfo(request: TaxInfoUpdateRequest): Promise<any> {
+        return this.send('PUT', '/accounts/tax', request, true, false);
     }
 
     async postPrelogin(request: PreloginRequest): Promise<PreloginResponse> {
@@ -240,6 +254,10 @@ export class ApiService implements ApiServiceAbstraction {
 
     postPassword(request: PasswordRequest): Promise<any> {
         return this.send('POST', '/accounts/password', request, true, false);
+    }
+
+    setPassword(request: SetPasswordRequest): Promise<any> {
+        return this.send('POST', '/accounts/set-password', request, true, false);
     }
 
     postSecurityStamp(request: PasswordVerificationRequest): Promise<any> {
@@ -309,6 +327,10 @@ export class ApiService implements ApiServiceAbstraction {
         return this.send('POST', '/accounts/verify-email-token', request, false, false);
     }
 
+    postAccountVerifyPassword(request: PasswordVerificationRequest): Promise<any> {
+        return this.send('POST', '/accounts/verify-password', request, true, false);
+    }
+
     postAccountRecoverDelete(request: DeleteRecoverRequest): Promise<any> {
         return this.send('POST', '/accounts/delete-recover', request, false, false);
     }
@@ -319,6 +341,19 @@ export class ApiService implements ApiServiceAbstraction {
 
     postAccountKdf(request: KdfRequest): Promise<any> {
         return this.send('POST', '/accounts/kdf', request, true, false);
+    }
+
+    async getEnterprisePortalSignInToken(): Promise<string> {
+        const r = await this.send('GET', '/accounts/enterprise-portal-signin-token', null, true, true);
+        return r as string;
+    }
+
+    async deleteSsoUser(organizationId: string): Promise<any> {
+        return this.send('DELETE', '/accounts/sso/' + organizationId, null, true, false);
+    }
+
+    async getSsoUserIdentifier(): Promise<string> {
+        return this.send('GET', '/accounts/sso/user-identifier', null, true, true)
     }
 
     // Folder APIs
@@ -397,6 +432,10 @@ export class ApiService implements ApiServiceAbstraction {
         return this.send('DELETE', '/ciphers', request, true, false);
     }
 
+    deleteManyCiphersAdmin(request: CipherBulkDeleteRequest): Promise<any> {
+        return this.send('DELETE', '/ciphers/admin', request, true, false);
+    }
+
     putMoveCiphers(request: CipherBulkMoveRequest): Promise<any> {
         return this.send('PUT', '/ciphers/move', request, true, false);
     }
@@ -432,6 +471,34 @@ export class ApiService implements ApiServiceAbstraction {
 
     postImportOrganizationCiphers(organizationId: string, request: ImportOrganizationCiphersRequest): Promise<any> {
         return this.send('POST', '/ciphers/import-organization?organizationId=' + organizationId, request, true, false);
+    }
+
+    putDeleteCipher(id: string): Promise<any> {
+        return this.send('PUT', '/ciphers/' + id + '/delete', null, true, false);
+    }
+
+    putDeleteCipherAdmin(id: string): Promise<any> {
+        return this.send('PUT', '/ciphers/' + id + '/delete-admin', null, true, false);
+    }
+
+    putDeleteManyCiphers(request: CipherBulkDeleteRequest): Promise<any> {
+        return this.send('PUT', '/ciphers/delete', request, true, false);
+    }
+
+    putDeleteManyCiphersAdmin(request: CipherBulkDeleteRequest): Promise<any> {
+        return this.send('PUT', '/ciphers/delete-admin', request, true, false);
+    }
+
+    putRestoreCipher(id: string): Promise<any> {
+        return this.send('PUT', '/ciphers/' + id + '/restore', null, true, false);
+    }
+
+    putRestoreCipherAdmin(id: string): Promise<any> {
+        return this.send('PUT', '/ciphers/' + id + '/restore-admin', null, true, false);
+    }
+
+    putRestoreManyCiphers(request: CipherBulkDeleteRequest): Promise<any> {
+        return this.send('PUT', '/ciphers/restore', request, true, false);
     }
 
     // Attachments APIs
@@ -564,6 +631,14 @@ export class ApiService implements ApiServiceAbstraction {
         return new ListResponse(r, PolicyResponse);
     }
 
+    async getPoliciesByToken(organizationId: string, token: string, email: string, organizationUserId: string):
+        Promise<ListResponse<PolicyResponse>> {
+        const r = await this.send('GET', '/organizations/' + organizationId + '/policies/token?' +
+            'token=' + encodeURIComponent(token) + '&email=' + encodeURIComponent(email) +
+            '&organizationUserId=' + organizationUserId, null, false, true);
+        return new ListResponse(r, PolicyResponse);
+    }
+
     async putPolicy(organizationId: string, type: PolicyType, request: PolicyRequest): Promise<PolicyResponse> {
         const r = await this.send('PUT', '/organizations/' + organizationId + '/policies/' + type, request, true, true);
         return new PolicyResponse(r);
@@ -619,13 +694,13 @@ export class ApiService implements ApiServiceAbstraction {
         return this.send('DELETE', '/organizations/' + organizationId + '/users/' + id, null, true, false);
     }
 
-    // Sync APIs
+    // Plan APIs
 
-    async getSync(): Promise<SyncResponse> {
-        const path = this.isDesktopClient || this.isWebClient ? '/sync?excludeDomains=true' : '/sync';
-        const r = await this.send('GET', path, null, true, true);
-        return new SyncResponse(r);
+    async getPlans(): Promise<ListResponse<PlanResponse>> {
+        const r = await this.send('GET', '/plans/', null, true, true);
+        return new ListResponse(r, PlanResponse);
     }
+
 
     async postImportDirectory(organizationId: string, request: ImportDirectoryRequest): Promise<any> {
         return this.send('POST', '/organizations/' + organizationId + '/import', request, true, false);
@@ -641,6 +716,14 @@ export class ApiService implements ApiServiceAbstraction {
     async putSettingsDomains(request: UpdateDomainsRequest): Promise<DomainsResponse> {
         const r = await this.send('PUT', '/settings/domains', request, true, true);
         return new DomainsResponse(r);
+    }
+
+    // Sync APIs
+
+    async getSync(): Promise<SyncResponse> {
+        const path = this.isDesktopClient || this.isWebClient ? '/sync?excludeDomains=true' : '/sync';
+        const r = await this.send('GET', path, null, true, true);
+        return new SyncResponse(r);
     }
 
     // Two-factor APIs
@@ -780,6 +863,11 @@ export class ApiService implements ApiServiceAbstraction {
             null, true, true);
     }
 
+    async getOrganizationTaxInfo(id: string): Promise<TaxInfoResponse> {
+        const r = await this.send('GET', '/organizations/' + id + '/tax', null, true, true);
+        return new TaxInfoResponse(r);
+    }
+
     async postOrganization(request: OrganizationCreateRequest): Promise<OrganizationResponse> {
         const r = await this.send('POST', '/organizations', request, true, true);
         return new OrganizationResponse(r);
@@ -788,6 +876,10 @@ export class ApiService implements ApiServiceAbstraction {
     async putOrganization(id: string, request: OrganizationUpdateRequest): Promise<OrganizationResponse> {
         const r = await this.send('PUT', '/organizations/' + id, request, true, true);
         return new OrganizationResponse(r);
+    }
+
+    async putOrganizationTaxInfo(id: string, request: OrganizationTaxInfoUpdateRequest): Promise<any> {
+        return this.send('PUT', '/organizations/' + id + '/tax', request, true, false);
     }
 
     postLeaveOrganization(id: string): Promise<any> {
@@ -946,6 +1038,35 @@ export class ApiService implements ApiServiceAbstraction {
 
     nativeFetch(request: Request): Promise<Response> {
         return fetch(request);
+    }
+
+    async preValidateSso(identifier: string): Promise<boolean> {
+
+        if (identifier == null || identifier === '') {
+            throw new Error('Organization Identifier was not provided.');
+        }
+        const headers = new Headers({
+            'Accept': 'application/json',
+            'Device-Type': this.deviceType,
+        });
+        if (this.customUserAgent != null) {
+            headers.set('User-Agent', this.customUserAgent);
+        }
+
+        const path = `/account/prevalidate?domainHint=${encodeURIComponent(identifier)}`;
+        const response = await this.fetch(new Request(this.identityBaseUrl + path, {
+            cache: 'no-store',
+            credentials: this.getCredentials(),
+            headers: headers,
+            method: 'GET',
+        }));
+
+        if (response.status === 200) {
+            return true;
+        } else {
+            const error = await this.handleError(response, false);
+            return Promise.reject(error);
+        }
     }
 
     private async send(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body: any,

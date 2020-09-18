@@ -89,6 +89,14 @@ export class Utils {
         }
     }
 
+    static fromBufferToUrlB64(buffer: ArrayBuffer): string {
+        const output = this.fromBufferToB64(buffer)
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+        return output;
+    }
+
     static fromBufferToUtf8(buffer: ArrayBuffer): string {
         if (Utils.isNode || Utils.isNativeScript) {
             return Buffer.from(buffer).toString('utf8');
@@ -157,7 +165,7 @@ export class Utils {
     static getHostname(uriString: string): string {
         const url = Utils.getUrl(uriString);
         try {
-            return url != null ? url.hostname : null;
+            return url != null && url.hostname !== '' ? url.hostname : null;
         } catch {
             return null;
         }
@@ -166,7 +174,7 @@ export class Utils {
     static getHost(uriString: string): string {
         const url = Utils.getUrl(uriString);
         try {
-            return url != null ? url.host : null;
+            return url != null && url.host !== '' ? url.host : null;
         } catch {
             return null;
         }
@@ -204,9 +212,14 @@ export class Utils {
             } catch (e) { }
         }
 
-        const domain = tldjs != null && tldjs.getDomain != null ? tldjs.getDomain(uriString) : null;
-        if (domain != null) {
-            return domain;
+        try {
+            const domain = tldjs != null && tldjs.getDomain != null ? tldjs.getDomain(uriString) : null;
+
+            if (domain != null) {
+                return domain;
+            }
+        } catch {
+            return null;
         }
 
         return null;
@@ -281,14 +294,14 @@ export class Utils {
             return null;
         }
 
-        const hasProtocol = uriString.indexOf('://') > -1;
-        if (!hasProtocol && uriString.indexOf('.') > -1) {
-            uriString = 'http://' + uriString;
-        } else if (!hasProtocol) {
-            return null;
+        let url = Utils.getUrlObject(uriString);
+        if (url == null) {
+            const hasHttpProtocol = uriString.indexOf('http://') === 0 || uriString.indexOf('https://') === 0;
+            if (!hasHttpProtocol && uriString.indexOf('.') > -1) {
+                url = Utils.getUrlObject('http://' + uriString);
+            }
         }
-
-        return Utils.getUrlObject(uriString);
+        return url;
     }
 
     private static getUrlObject(uriString: string): URL {
@@ -298,6 +311,12 @@ export class Utils {
             } else if (typeof URL === 'function') {
                 return new URL(uriString);
             } else if (window != null) {
+                const hasProtocol = uriString.indexOf('://') > -1;
+                if (!hasProtocol && uriString.indexOf('.') > -1) {
+                    uriString = 'http://' + uriString;
+                } else if (!hasProtocol) {
+                    return null;
+                }
                 const anchor = window.document.createElement('a');
                 anchor.href = uriString;
                 return anchor as any;

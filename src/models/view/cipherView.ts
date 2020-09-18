@@ -21,6 +21,7 @@ export class CipherView implements View {
     favorite = false;
     organizationUseTotp = false;
     edit = false;
+    viewPassword = true;
     localData: any;
     login = new LoginView();
     identity = new IdentityView();
@@ -31,6 +32,7 @@ export class CipherView implements View {
     passwordHistory: PasswordHistoryView[] = null;
     collectionIds: string[] = null;
     revisionDate: Date = null;
+    deletedDate: Date = null;
 
     constructor(c?: Cipher) {
         if (!c) {
@@ -43,10 +45,12 @@ export class CipherView implements View {
         this.favorite = c.favorite;
         this.organizationUseTotp = c.organizationUseTotp;
         this.edit = c.edit;
+        this.viewPassword = c.viewPassword;
         this.type = c.type;
         this.localData = c.localData;
         this.collectionIds = c.collectionIds;
         this.revisionDate = c.revisionDate;
+        this.deletedDate = c.deletedDate;
     }
 
     get subTitle(): string {
@@ -96,5 +100,9 @@ export class CipherView implements View {
             return null;
         }
         return this.login.passwordRevisionDate;
+    }
+
+    get isDeleted(): boolean {
+        return this.deletedDate != null;
     }
 }

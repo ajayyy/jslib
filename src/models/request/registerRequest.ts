@@ -1,4 +1,5 @@
 import { KeysRequest } from './keysRequest';
+import { ReferenceEventRequest } from './referenceEventRequest';
 
 import { KdfType } from '../../enums/kdfType';
 
@@ -13,9 +14,10 @@ export class RegisterRequest {
     organizationUserId: string;
     kdf: KdfType;
     kdfIterations: number;
+    referenceData: ReferenceEventRequest;
 
     constructor(email: string, name: string, masterPasswordHash: string, masterPasswordHint: string, key: string,
-        kdf: KdfType, kdfIterations: number) {
+        kdf: KdfType, kdfIterations: number, referenceData: ReferenceEventRequest) {
         this.name = name;
         this.email = email;
         this.masterPasswordHash = masterPasswordHash;
@@ -23,5 +25,6 @@ export class RegisterRequest {
         this.key = key;
         this.kdf = kdf;
         this.kdfIterations = kdfIterations;
+        this.referenceData = referenceData;
     }
 }

@@ -1,13 +1,18 @@
 import {
+    Directive,
     Input,
     OnInit,
 } from '@angular/core';
+
 import { Router } from '@angular/router';
 
 import { AuthResult } from '../../models/domain/authResult';
 
 import { AuthService } from '../../abstractions/auth.service';
+import { CryptoFunctionService } from '../../abstractions/cryptoFunction.service';
+import { EnvironmentService } from '../../abstractions/environment.service';
 import { I18nService } from '../../abstractions/i18n.service';
+import { PasswordGenerationService } from '../../abstractions/passwordGeneration.service';
 import { PlatformUtilsService } from '../../abstractions/platformUtils.service';
 import { StateService } from '../../abstractions/state.service';
 import { StorageService } from '../../abstractions/storage.service';
@@ -21,6 +26,7 @@ const Keys = {
     rememberEmail: 'rememberEmail',
 };
 
+@Directive()
 export class LoginComponent implements OnInit {
     @Input() email: string = '';
     @Input() rememberEmail = true;
@@ -37,7 +43,9 @@ export class LoginComponent implements OnInit {
 
     constructor(protected authService: AuthService, protected router: Router,
         protected platformUtilsService: PlatformUtilsService, protected i18nService: I18nService,
-        private storageService: StorageService, protected stateService: StorageService) { }
+        protected stateService: StateService, protected environmentService: EnvironmentService,
+        protected passwordGenerationService: PasswordGenerationService,
+        protected cryptoFunctionService: CryptoFunctionService, private storageService: StorageService) { }
 
     async ngOnInit() {
         if (this.email == null || this.email === '') {
@@ -108,5 +116,34 @@ export class LoginComponent implements OnInit {
         this.platformUtilsService.eventTrack('Toggled Master Password on Login');
         this.showPassword = !this.showPassword;
         document.getElementById('masterPassword').focus();
+    }
+
+    async launchSsoBrowser(clientId: string, ssoRedirectUri: string) {
+        // Generate necessary sso params
+        const passwordOptions: any = {
+            type: 'password',
+            length: 64,
+            uppercase: true,
+            lowercase: true,
+            numbers: true,
+            special: false,
+        };
+        const state = await this.passwordGenerationService.generatePassword(passwordOptions);
+        const ssoCodeVerifier = await this.passwordGenerationService.generatePassword(passwordOptions);
+        const codeVerifierHash = await this.cryptoFunctionService.hash(ssoCodeVerifier, 'sha256');
+        const codeChallenge = Utils.fromBufferToUrlB64(codeVerifierHash);
+
+        // Save sso params
+        await this.storageService.save(ConstantsService.ssoStateKey, state);
+        await this.storageService.save(ConstantsService.ssoCodeVerifierKey, ssoCodeVerifier);
+
+        // Build URI
+        const webUrl = this.environmentService.webVaultUrl == null ? 'https://vault.bitwarden.com' :
+            this.environmentService.webVaultUrl;
+
+        // Launch browser
+        this.platformUtilsService.launchUri(webUrl + '/#/sso?clientId=' + clientId +
+            '&redirectUri=' + encodeURIComponent(ssoRedirectUri) +
+            '&state=' + state + '&codeChallenge=' + codeChallenge);
     }
 }

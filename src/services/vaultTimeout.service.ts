@@ -4,17 +4,19 @@ import { CipherService } from '../abstractions/cipher.service';
 import { CollectionService } from '../abstractions/collection.service';
 import { CryptoService } from '../abstractions/crypto.service';
 import { FolderService } from '../abstractions/folder.service';
-import { LockService as LockServiceAbstraction } from '../abstractions/lock.service';
 import { MessagingService } from '../abstractions/messaging.service';
 import { PlatformUtilsService } from '../abstractions/platformUtils.service';
 import { SearchService } from '../abstractions/search.service';
 import { StorageService } from '../abstractions/storage.service';
+import { TokenService } from '../abstractions/token.service';
 import { UserService } from '../abstractions/user.service';
+import { VaultTimeoutService as VaultTimeoutServiceAbstraction } from '../abstractions/vaultTimeout.service';
 
 import { CipherString } from '../models/domain/cipherString';
 
-export class LockService implements LockServiceAbstraction {
+export class VaultTimeoutService implements VaultTimeoutServiceAbstraction {
     pinProtectedKey: CipherString = null;
+    biometricLocked: boolean = true;
 
     private inited = false;
 
@@ -22,7 +24,8 @@ export class LockService implements LockServiceAbstraction {
         private collectionService: CollectionService, private cryptoService: CryptoService,
         private platformUtilsService: PlatformUtilsService, private storageService: StorageService,
         private messagingService: MessagingService, private searchService: SearchService,
-        private userService: UserService, private lockedCallback: () => Promise<void> = null) {
+        private userService: UserService, private tokenService: TokenService,
+        private lockedCallback: () => Promise<void> = null, private loggedOutCallback: () => Promise<void> = null) {
     }
 
     init(checkOnInterval: boolean) {
@@ -32,22 +35,29 @@ export class LockService implements LockServiceAbstraction {
 
         this.inited = true;
         if (checkOnInterval) {
-            this.checkLock();
-            setInterval(() => this.checkLock(), 10 * 1000); // check every 10 seconds
+            this.checkVaultTimeout();
+            setInterval(() => this.checkVaultTimeout(), 10 * 1000); // check every 10 seconds
         }
     }
 
+    // Keys aren't stored for a device that is locked or logged out.
     async isLocked(): Promise<boolean> {
         const hasKey = await this.cryptoService.hasKey();
+        if (hasKey) {
+            if (await this.isBiometricLockSet() && this.biometricLocked) {
+                return true;
+            }
+        }
         return !hasKey;
     }
 
-    async checkLock(): Promise<void> {
+    async checkVaultTimeout(): Promise<void> {
         if (await this.platformUtilsService.isViewOpen()) {
             // Do not lock
             return;
         }
 
+        // "is logged out check" - similar to isLocked, below
         const authed = await this.userService.isAuthenticated();
         if (!authed) {
             return;
@@ -57,11 +67,13 @@ export class LockService implements LockServiceAbstraction {
             return;
         }
 
-        let lockOption = this.platformUtilsService.lockTimeout();
-        if (lockOption == null) {
-            lockOption = await this.storageService.get<number>(ConstantsService.lockOptionKey);
+        // This has the potential to be removed. Evaluate after all platforms complete with auto-logout
+        let vaultTimeout = this.platformUtilsService.lockTimeout();
+        if (vaultTimeout == null) {
+            vaultTimeout = await this.storageService.get<number>(ConstantsService.vaultTimeoutKey);
         }
-        if (lockOption == null || lockOption < 0) {
+
+        if (vaultTimeout == null || vaultTimeout < 0) {
             return;
         }
 
@@ -77,11 +89,12 @@ export class LockService implements LockServiceAbstraction {
             return;
         }
 
-        const lockOptionSeconds = lockOption * 60;
+        const vaultTimeoutSeconds = vaultTimeout * 60;
         const diffSeconds = ((new Date()).getTime() - lastActive) / 1000;
-        if (diffSeconds >= lockOptionSeconds) {
-            // need to lock now
-            await this.lock(true);
+        if (diffSeconds >= vaultTimeoutSeconds) {
+            // Pivot based on the saved vault timeout action
+            const timeoutAction = await this.storageService.get<string>(ConstantsService.vaultTimeoutActionKey);
+            timeoutAction === 'logOut' ? await this.logOut() : await this.lock(true);
         }
     }
 
@@ -89,6 +102,17 @@ export class LockService implements LockServiceAbstraction {
         const authed = await this.userService.isAuthenticated();
         if (!authed) {
             return;
+        }
+
+        if (allowSoftLock) {
+            const biometricLocked = await this.isBiometricLockSet();
+            if (biometricLocked) {
+                this.messagingService.send('locked');
+                if (this.lockedCallback != null) {
+                    await this.lockedCallback();
+                }
+                return;
+            }
         }
 
         await Promise.all([
@@ -108,15 +132,27 @@ export class LockService implements LockServiceAbstraction {
         }
     }
 
-    async setLockOption(lockOption: number): Promise<void> {
-        await this.storageService.save(ConstantsService.lockOptionKey, lockOption);
+    async logOut(): Promise<void> {
+        if (this.loggedOutCallback != null) {
+            await this.loggedOutCallback();
+        }
+    }
+
+    async setVaultTimeoutOptions(timeout: number, action: string): Promise<void> {
+        await this.storageService.save(ConstantsService.vaultTimeoutKey, timeout);
+        await this.storageService.save(ConstantsService.vaultTimeoutActionKey, action);
         await this.cryptoService.toggleKey();
+        await this.tokenService.toggleTokens();
     }
 
     async isPinLockSet(): Promise<[boolean, boolean]> {
         const protectedPin = await this.storageService.get<string>(ConstantsService.protectedPin);
         const pinProtectedKey = await this.storageService.get<string>(ConstantsService.pinProtectedKey);
         return [protectedPin != null, pinProtectedKey != null];
+    }
+
+    async isBiometricLockSet(): Promise<boolean> {
+        return await this.storageService.get<boolean>(ConstantsService.biometricUnlockKey);
     }
 
     clear(): Promise<any> {

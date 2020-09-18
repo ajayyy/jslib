@@ -1,4 +1,5 @@
 import {
+    Directive,
     EventEmitter,
     Input,
     Output,
@@ -8,6 +9,7 @@ import { SearchService } from '../../abstractions/search.service';
 
 import { CipherView } from '../../models/view/cipherView';
 
+@Directive()
 export class CiphersComponent {
     @Input() activeCipherId: string = null;
     @Output() onCipherClicked = new EventEmitter<CipherView>();
@@ -21,6 +23,7 @@ export class CiphersComponent {
     searchText: string;
     searchPlaceholder: string = null;
     filter: (cipher: CipherView) => boolean = null;
+    deleted: boolean = false;
 
     protected searchPending = false;
     protected didScroll = false;
@@ -32,7 +35,8 @@ export class CiphersComponent {
 
     constructor(protected searchService: SearchService) { }
 
-    async load(filter: (cipher: CipherView) => boolean = null) {
+    async load(filter: (cipher: CipherView) => boolean = null, deleted: boolean = false) {
+        this.deleted = deleted || false;
         await this.applyFilter(filter);
         this.loaded = true;
     }
@@ -53,16 +57,16 @@ export class CiphersComponent {
         this.didScroll = this.pagedCiphers.length > this.pageSize;
     }
 
-    async reload(filter: (cipher: CipherView) => boolean = null) {
+    async reload(filter: (cipher: CipherView) => boolean = null, deleted: boolean = false) {
         this.loaded = false;
         this.ciphers = [];
-        await this.load(filter);
+        await this.load(filter, deleted);
     }
 
     async refresh() {
         try {
             this.refreshing = true;
-            await this.reload(this.filter);
+            await this.reload(this.filter, this.deleted);
         } finally {
             this.refreshing = false;
         }
@@ -78,14 +82,15 @@ export class CiphersComponent {
         if (this.searchTimeout != null) {
             clearTimeout(this.searchTimeout);
         }
+        const deletedFilter: (cipher: CipherView) => boolean = (c) => c.isDeleted === this.deleted;
         if (timeout == null) {
-            this.ciphers = await this.searchService.searchCiphers(this.searchText, this.filter);
+            this.ciphers = await this.searchService.searchCiphers(this.searchText, [this.filter, deletedFilter], null);
             await this.resetPaging();
             return;
         }
         this.searchPending = true;
         this.searchTimeout = setTimeout(async () => {
-            this.ciphers = await this.searchService.searchCiphers(this.searchText, this.filter);
+            this.ciphers = await this.searchService.searchCiphers(this.searchText, [this.filter, deletedFilter], null);
             await this.resetPaging();
             this.searchPending = false;
         }, timeout);

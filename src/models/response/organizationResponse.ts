@@ -1,9 +1,11 @@
 import { BaseResponse } from './baseResponse';
+import { PlanResponse } from './planResponse';
 
 import { PlanType } from '../../enums/planType';
 
 export class OrganizationResponse extends BaseResponse {
     id: string;
+    identifier: string;
     name: string;
     businessName: string;
     businessAddress1: string;
@@ -12,7 +14,7 @@ export class OrganizationResponse extends BaseResponse {
     businessCountry: string;
     businessTaxNumber: string;
     billingEmail: string;
-    plan: string;
+    plan: PlanResponse;
     planType: PlanType;
     seats: number;
     maxCollections: number;
@@ -27,6 +29,7 @@ export class OrganizationResponse extends BaseResponse {
     constructor(response: any) {
         super(response);
         this.id = this.getResponseProperty('Id');
+        this.identifier = this.getResponseProperty('Identifier');
         this.name = this.getResponseProperty('Name');
         this.businessName = this.getResponseProperty('BusinessName');
         this.businessAddress1 = this.getResponseProperty('BusinessAddress1');
@@ -35,7 +38,8 @@ export class OrganizationResponse extends BaseResponse {
         this.businessCountry = this.getResponseProperty('BusinessCountry');
         this.businessTaxNumber = this.getResponseProperty('BusinessTaxNumber');
         this.billingEmail = this.getResponseProperty('BillingEmail');
-        this.plan = this.getResponseProperty('Plan');
+        const plan = this.getResponseProperty('Plan');
+        this.plan = plan == null ? null : new PlanResponse(plan);
         this.planType = this.getResponseProperty('PlanType');
         this.seats = this.getResponseProperty('Seats');
         this.maxCollections = this.getResponseProperty('MaxCollections');

@@ -24,6 +24,7 @@ export class Cipher extends Domain {
     favorite: boolean;
     organizationUseTotp: boolean;
     edit: boolean;
+    viewPassword: boolean;
     revisionDate: Date;
     localData: any;
     login: Login;
@@ -34,6 +35,7 @@ export class Cipher extends Domain {
     fields: Field[];
     passwordHistory: Password[];
     collectionIds: string[];
+    deletedDate: Date;
 
     constructor(obj?: CipherData, alreadyEncrypted: boolean = false, localData: any = null) {
         super();
@@ -54,9 +56,15 @@ export class Cipher extends Domain {
         this.favorite = obj.favorite;
         this.organizationUseTotp = obj.organizationUseTotp;
         this.edit = obj.edit;
+        if (obj.viewPassword != null) {
+            this.viewPassword = obj.viewPassword;
+        } else {
+            this.viewPassword = true; // Default for already synced Ciphers without viewPassword
+        }
         this.revisionDate = obj.revisionDate != null ? new Date(obj.revisionDate) : null;
         this.collectionIds = obj.collectionIds;
         this.localData = localData;
+        this.deletedDate = obj.deletedDate != null ? new Date(obj.deletedDate) : null;
 
         switch (this.type) {
             case CipherType.Login:
@@ -167,11 +175,13 @@ export class Cipher extends Domain {
         c.folderId = this.folderId;
         c.userId = this.organizationId != null ? userId : null;
         c.edit = this.edit;
+        c.viewPassword = this.viewPassword;
         c.organizationUseTotp = this.organizationUseTotp;
         c.favorite = this.favorite;
         c.revisionDate = this.revisionDate != null ? this.revisionDate.toISOString() : null;
         c.type = this.type;
         c.collectionIds = this.collectionIds;
+        c.deletedDate = this.deletedDate != null ? this.deletedDate.toISOString() : null;
 
         this.buildDataModel(this, c, {
             name: null,

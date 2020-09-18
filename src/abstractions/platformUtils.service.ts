@@ -14,6 +14,9 @@ export abstract class PlatformUtilsService {
     isMacAppStore: () => boolean;
     analyticsId: () => string;
     isViewOpen: () => Promise<boolean>;
+    /**
+     * @deprecated This only ever returns null. Pull from your platform's storage using ConstantsService.vaultTimeoutKey
+     */
     lockTimeout: () => number;
     launchUri: (uri: string, options?: any) => void;
     saveFile: (win: Window, blobData: any, blobOptions: any, fileName: string) => void;
@@ -29,4 +32,6 @@ export abstract class PlatformUtilsService {
     isSelfHost: () => boolean;
     copyToClipboard: (text: string, options?: any) => void;
     readFromClipboard: (options?: any) => Promise<string>;
+    supportsBiometric: () => Promise<boolean>;
+    authenticateBiometric: () => Promise<boolean>;
 }

@@ -1,5 +1,6 @@
 import {
     ChangeDetectorRef,
+    Directive,
     EventEmitter,
     Input,
     NgZone,
@@ -30,10 +31,13 @@ import { BroadcasterService } from '../services/broadcaster.service';
 
 const BroadcasterSubscriptionId = 'ViewComponent';
 
+@Directive()
 export class ViewComponent implements OnDestroy, OnInit {
     @Input() cipherId: string;
     @Output() onEditCipher = new EventEmitter<CipherView>();
     @Output() onCloneCipher = new EventEmitter<CipherView>();
+    @Output() onDeletedCipher = new EventEmitter<CipherView>();
+    @Output() onRestoredCipher = new EventEmitter<CipherView>();
 
     cipher: CipherView;
     showPassword: boolean;
@@ -108,6 +112,47 @@ export class ViewComponent implements OnDestroy, OnInit {
 
     clone() {
         this.onCloneCipher.emit(this.cipher);
+    }
+
+    async delete(): Promise<boolean> {
+        const confirmed = await this.platformUtilsService.showDialog(
+            this.i18nService.t(this.cipher.isDeleted ? 'permanentlyDeleteItemConfirmation' : 'deleteItemConfirmation'),
+            this.i18nService.t('deleteItem'), this.i18nService.t('yes'), this.i18nService.t('no'), 'warning');
+        if (!confirmed) {
+            return false;
+        }
+
+        try {
+            await this.deleteCipher();
+            this.platformUtilsService.eventTrack((this.cipher.isDeleted ? 'Permanently ' : '') + 'Deleted Cipher');
+            this.platformUtilsService.showToast('success', null,
+                this.i18nService.t(this.cipher.isDeleted ? 'permanentlyDeletedItem' : 'deletedItem'));
+            this.onDeletedCipher.emit(this.cipher);
+        } catch { }
+
+        return true;
+    }
+
+    async restore(): Promise<boolean> {
+        if (!this.cipher.isDeleted) {
+            return false;
+        }
+
+        const confirmed = await this.platformUtilsService.showDialog(
+            this.i18nService.t('restoreItemConfirmation'), this.i18nService.t('restoreItem'),
+            this.i18nService.t('yes'), this.i18nService.t('no'), 'warning');
+        if (!confirmed) {
+            return false;
+        }
+
+        try {
+            await this.restoreCipher();
+            this.platformUtilsService.eventTrack('Restored Cipher');
+            this.platformUtilsService.showToast('success', null, this.i18nService.t('restoredItem'));
+            this.onRestoredCipher.emit(this.cipher);
+        } catch { }
+
+        return true;
     }
 
     togglePassword() {
@@ -215,6 +260,15 @@ export class ViewComponent implements OnDestroy, OnInit {
         }
 
         a.downloading = false;
+    }
+
+    protected deleteCipher() {
+        return this.cipher.isDeleted ? this.cipherService.deleteWithServer(this.cipher.id)
+            : this.cipherService.softDeleteWithServer(this.cipher.id);
+    }
+
+    protected restoreCipher() {
+        return this.cipherService.restoreWithServer(this.cipher.id);
     }
 
     private cleanUp() {

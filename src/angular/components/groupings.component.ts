@@ -1,4 +1,5 @@
 import {
+    Directive,
     EventEmitter,
     Input,
     Output,
@@ -18,13 +19,16 @@ import { UserService } from '../../abstractions/user.service';
 
 import { ConstantsService } from '../../services/constants.service';
 
+@Directive()
 export class GroupingsComponent {
     @Input() showFolders = true;
     @Input() showCollections = true;
     @Input() showFavorites = true;
+    @Input() showTrash = true;
 
     @Output() onAllClicked = new EventEmitter();
     @Output() onFavoritesClicked = new EventEmitter();
+    @Output() onTrashClicked = new EventEmitter();
     @Output() onCipherTypeClicked = new EventEmitter<CipherType>();
     @Output() onFolderClicked = new EventEmitter<FolderView>();
     @Output() onAddFolder = new EventEmitter();
@@ -32,13 +36,14 @@ export class GroupingsComponent {
     @Output() onCollectionClicked = new EventEmitter<CollectionView>();
 
     folders: FolderView[];
-    nestedFolders: Array<TreeNode<FolderView>>;
+    nestedFolders: TreeNode<FolderView>[];
     collections: CollectionView[];
-    nestedCollections: Array<TreeNode<CollectionView>>;
+    nestedCollections: TreeNode<CollectionView>[];
     loaded: boolean = false;
     cipherType = CipherType;
     selectedAll: boolean = false;
     selectedFavorites: boolean = false;
+    selectedTrash: boolean = false;
     selectedType: CipherType = null;
     selectedFolder: boolean = false;
     selectedFolderId: string = null;
@@ -101,6 +106,12 @@ export class GroupingsComponent {
         this.onFavoritesClicked.emit();
     }
 
+    selectTrash() {
+        this.clearSelections();
+        this.selectedTrash = true;
+        this.onTrashClicked.emit();
+    }
+
     selectType(type: CipherType) {
         this.clearSelections();
         this.selectedType = type;
@@ -131,6 +142,7 @@ export class GroupingsComponent {
     clearSelections() {
         this.selectedAll = false;
         this.selectedFavorites = false;
+        this.selectedTrash = false;
         this.selectedType = null;
         this.selectedFolder = false;
         this.selectedFolderId = null;

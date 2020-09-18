@@ -8,6 +8,7 @@ import { CipherView } from '../models/view/cipherView';
 import { FolderView } from '../models/view/folderView';
 
 import { CipherType } from '../enums/cipherType';
+import { FieldType } from '../enums/fieldType';
 
 export class EnpassJsonImporter extends BaseImporter implements Importer {
     parse(data: string): ImportResult {
@@ -78,7 +79,8 @@ export class EnpassJsonImporter extends BaseImporter implements Importer {
             } else if (field.type === 'url') {
                 urls.push(field.value);
             } else {
-                this.processKvp(cipher, field.label, field.value);
+                this.processKvp(cipher, field.label, field.value,
+                    field.sensitive === 1 ? FieldType.Hidden : FieldType.Text);
             }
         });
         cipher.login.uris = this.makeUriArray(urls);
@@ -101,10 +103,12 @@ export class EnpassJsonImporter extends BaseImporter implements Importer {
                 cipher.card.code = field.value;
             } else if (field.type === 'ccExpiry' && this.isNullOrWhitespace(cipher.card.expYear)) {
                 if (!this.setCardExpiration(cipher, field.value)) {
-                    this.processKvp(cipher, field.label, field.value);
+                    this.processKvp(cipher, field.label, field.value,
+                        field.sensitive === 1 ? FieldType.Hidden : FieldType.Text);
                 }
             } else {
-                this.processKvp(cipher, field.label, field.value);
+                this.processKvp(cipher, field.label, field.value,
+                    field.sensitive === 1 ? FieldType.Hidden : FieldType.Text);
             }
         });
     }
@@ -114,7 +118,8 @@ export class EnpassJsonImporter extends BaseImporter implements Importer {
             if (this.isNullOrWhitespace(field.value) || field.type === 'section') {
                 return;
             }
-            this.processKvp(cipher, field.label, field.value);
+            this.processKvp(cipher, field.label, field.value,
+                field.sensitive === 1 ? FieldType.Hidden : FieldType.Text);
         });
     }
 

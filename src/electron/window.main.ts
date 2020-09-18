@@ -22,7 +22,8 @@ export class WindowMain {
     private enableAlwaysOnTop: boolean = false;
 
     constructor(private storageService: StorageService, private hideTitleBar = false,
-        private defaultWidth = 950, private defaultHeight = 600) { }
+        private defaultWidth = 950, private defaultHeight = 600,
+        private argvCallback: (argv: string[]) => void = null) { }
 
     init(): Promise<any> {
         return new Promise((resolve, reject) => {
@@ -33,13 +34,18 @@ export class WindowMain {
                         app.quit();
                         return;
                     } else {
-                        app.on('second-instance', (event, commandLine, workingDirectory) => {
+                        app.on('second-instance', (event, argv, workingDirectory) => {
                             // Someone tried to run a second instance, we should focus our window.
                             if (this.win != null) {
                                 if (this.win.isMinimized() || !this.win.isVisible()) {
                                     this.win.show();
                                 }
                                 this.win.focus();
+                            }
+                            if (process.platform === 'win32' || process.platform === 'linux') {
+                                if (this.argvCallback != null) {
+                                    this.argvCallback(argv);
+                                }
                             }
                         });
                     }
@@ -57,6 +63,9 @@ export class WindowMain {
                 app.on('ready', async () => {
                     await this.createWindow();
                     resolve();
+                    if (this.argvCallback != null) {
+                        this.argvCallback(process.argv);
+                    }
                 });
 
                 // Quit when all windows are closed.
@@ -121,7 +130,7 @@ export class WindowMain {
             pathname: path.join(__dirname, '/index.html'),
             slashes: true,
         }), {
-                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:71.0) Gecko/20100101 Firefox/71.0',
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0',
             });
 
         // Open the DevTools.

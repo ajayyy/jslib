@@ -1,4 +1,5 @@
 import {
+    Directive,
     EventEmitter,
     Input,
     OnInit,
@@ -11,6 +12,7 @@ import { PlatformUtilsService } from '../../abstractions/platformUtils.service';
 
 import { PasswordGeneratorPolicyOptions } from '../../models/domain/passwordGeneratorPolicyOptions';
 
+@Directive()
 export class PasswordGeneratorComponent implements OnInit {
     @Input() showSelect: boolean = false;
     @Output() onSelected = new EventEmitter<string>();
@@ -89,8 +91,7 @@ export class PasswordGeneratorComponent implements OnInit {
     }
 
     private normalizeOptions() {
-        this.options.minLowercase = 0;
-        this.options.minUppercase = 0;
+        // Application level normalize options depedent on class variables
         this.options.ambiguous = !this.avoidAmbiguous;
 
         if (!this.options.uppercase && !this.options.lowercase && !this.options.number && !this.options.special) {
@@ -103,52 +104,6 @@ export class PasswordGeneratorComponent implements OnInit {
             }
         }
 
-        if (!this.options.length || this.options.length < 5) {
-            this.options.length = 5;
-        } else if (this.options.length > 128) {
-            this.options.length = 128;
-        }
-
-        if (this.options.length < this.enforcedPolicyOptions.minLength) {
-            this.options.length = this.enforcedPolicyOptions.minLength;
-        }
-
-        if (!this.options.minNumber) {
-            this.options.minNumber = 0;
-        } else if (this.options.minNumber > this.options.length) {
-            this.options.minNumber = this.options.length;
-        } else if (this.options.minNumber > 9) {
-            this.options.minNumber = 9;
-        }
-
-        if (this.options.minNumber < this.enforcedPolicyOptions.numberCount) {
-            this.options.minNumber = this.enforcedPolicyOptions.numberCount;
-        }
-
-        if (!this.options.minSpecial) {
-            this.options.minSpecial = 0;
-        } else if (this.options.minSpecial > this.options.length) {
-            this.options.minSpecial = this.options.length;
-        } else if (this.options.minSpecial > 9) {
-            this.options.minSpecial = 9;
-        }
-
-        if (this.options.minSpecial < this.enforcedPolicyOptions.specialCount) {
-            this.options.minSpecial = this.enforcedPolicyOptions.specialCount;
-        }
-
-        if (this.options.minSpecial + this.options.minNumber > this.options.length) {
-            this.options.minSpecial = this.options.length - this.options.minNumber;
-        }
-
-        if (this.options.numWords == null || this.options.length < 3) {
-            this.options.numWords = 3;
-        } else if (this.options.numWords > 20) {
-            this.options.numWords = 20;
-        }
-
-        if (this.options.wordSeparator != null && this.options.wordSeparator.length > 1) {
-            this.options.wordSeparator = this.options.wordSeparator[0];
-        }
+        this.passwordGenerationService.normalizeOptions(this.options, this.enforcedPolicyOptions);
     }
 }

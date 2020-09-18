@@ -19,6 +19,7 @@ import { SymmetricCryptoKey } from '../models/domain/symmetricCryptoKey';
 
 import { CipherBulkDeleteRequest } from '../models/request/cipherBulkDeleteRequest';
 import { CipherBulkMoveRequest } from '../models/request/cipherBulkMoveRequest';
+import { CipherBulkRestoreRequest } from '../models/request/cipherBulkRestoreRequest';
 import { CipherBulkShareRequest } from '../models/request/cipherBulkShareRequest';
 import { CipherCollectionsRequest } from '../models/request/cipherCollectionsRequest';
 import { CipherCreateRequest } from '../models/request/cipherCreateRequest';
@@ -33,6 +34,8 @@ import { CipherView } from '../models/view/cipherView';
 import { FieldView } from '../models/view/fieldView';
 import { PasswordHistoryView } from '../models/view/passwordHistoryView';
 import { View } from '../models/view/view';
+
+import { SortedCiphersCache } from '../models/domain/sortedCiphersCache';
 
 import { ApiService } from '../abstractions/api.service';
 import { CipherService as CipherServiceAbstraction } from '../abstractions/cipher.service';
@@ -63,6 +66,8 @@ export class CipherService implements CipherServiceAbstraction {
     // tslint:disable-next-line
     _decryptedCipherCache: CipherView[];
 
+    private sortedCiphersCache: SortedCiphersCache = new SortedCiphersCache(this.sortCiphersByLastUsed);
+
     constructor(private cryptoService: CryptoService, private userService: UserService,
         private settingsService: SettingsService, private apiService: ApiService,
         private storageService: StorageService, private i18nService: I18nService,
@@ -85,6 +90,7 @@ export class CipherService implements CipherServiceAbstraction {
 
     clearCache(): void {
         this.decryptedCipherCache = null;
+        this.sortedCiphersCache.clear();
     }
 
     addToEditHistory(model: CipherView, existingItem: string, currentItem: string, type: string) {
@@ -175,7 +181,7 @@ export class CipherService implements CipherServiceAbstraction {
             return null;
         }
 
-        const promises: Array<Promise<any>> = [];
+        const promises: Promise<any>[] = [];
         const encAttachments: Attachment[] = [];
         attachmentsModel.forEach(async (model) => {
             const attachment = new Attachment();
@@ -315,6 +321,9 @@ export class CipherService implements CipherServiceAbstraction {
         const ciphers = await this.getAllDecrypted();
 
         return ciphers.filter((cipher) => {
+            if (cipher.isDeleted) {
+                return false;
+            }
             if (folder && cipher.folderId === groupingId) {
                 return true;
             } else if (!folder && cipher.collectionIds != null && cipher.collectionIds.indexOf(groupingId) > -1) {
@@ -357,6 +366,9 @@ export class CipherService implements CipherServiceAbstraction {
         }
 
         return ciphers.filter((cipher) => {
+            if (cipher.deletedDate != null) {
+                return false;
+            }
             if (includeOtherTypes != null && includeOtherTypes.indexOf(cipher.type) > -1) {
                 return true;
             }
@@ -436,13 +448,11 @@ export class CipherService implements CipherServiceAbstraction {
     }
 
     async getLastUsedForUrl(url: string): Promise<CipherView> {
-        const ciphers = await this.getAllDecryptedForUrl(url);
-        if (ciphers.length === 0) {
-            return null;
-        }
+        return this.getCipherForUrl(url, true);
+    }
 
-        const sortedCiphers = ciphers.sort(this.sortCiphersByLastUsed);
-        return sortedCiphers[0];
+    async getNextCipherForUrl(url: string): Promise<CipherView> {
+        return this.getCipherForUrl(url, false);
     }
 
     async updateLastUsedDate(id: string): Promise<void> {
@@ -509,7 +519,7 @@ export class CipherService implements CipherServiceAbstraction {
     }
 
     async shareWithServer(cipher: CipherView, organizationId: string, collectionIds: string[]): Promise<any> {
-        const attachmentPromises: Array<Promise<any>> = [];
+        const attachmentPromises: Promise<any>[] = [];
         if (cipher.attachments != null) {
             cipher.attachments.forEach((attachment) => {
                 if (attachment.key == null) {
@@ -530,7 +540,7 @@ export class CipherService implements CipherServiceAbstraction {
     }
 
     async shareManyWithServer(ciphers: CipherView[], organizationId: string, collectionIds: string[]): Promise<any> {
-        const promises: Array<Promise<any>> = [];
+        const promises: Promise<any>[] = [];
         const encCiphers: Cipher[] = [];
         for (const cipher of ciphers) {
             cipher.organizationId = organizationId;
@@ -796,6 +806,76 @@ export class CipherService implements CipherServiceAbstraction {
         };
     }
 
+    async softDelete(id: string | string[]): Promise<any> {
+        const userId = await this.userService.getUserId();
+        const ciphers = await this.storageService.get<{ [id: string]: CipherData; }>(
+            Keys.ciphersPrefix + userId);
+        if (ciphers == null) {
+            return;
+        }
+
+        const setDeletedDate = (cipherId: string) => {
+            if (ciphers[cipherId] == null) {
+                return;
+            }
+            ciphers[cipherId].deletedDate = new Date().toISOString();
+        };
+
+        if (typeof id === 'string') {
+            setDeletedDate(id);
+        } else {
+            (id as string[]).forEach(setDeletedDate);
+        }
+
+        await this.storageService.save(Keys.ciphersPrefix + userId, ciphers);
+        this.decryptedCipherCache = null;
+    }
+
+    async softDeleteWithServer(id: string): Promise<any> {
+        await this.apiService.putDeleteCipher(id);
+        await this.softDelete(id);
+    }
+
+    async softDeleteManyWithServer(ids: string[]): Promise<any> {
+        await this.apiService.putDeleteManyCiphers(new CipherBulkDeleteRequest(ids));
+        await this.softDelete(ids);
+    }
+
+    async restore(id: string | string[]): Promise<any> {
+        const userId = await this.userService.getUserId();
+        const ciphers = await this.storageService.get<{ [id: string]: CipherData; }>(
+            Keys.ciphersPrefix + userId);
+        if (ciphers == null) {
+            return;
+        }
+
+        const clearDeletedDate = (cipherId: string) => {
+            if (ciphers[cipherId] == null) {
+                return;
+            }
+            ciphers[cipherId].deletedDate = null;
+        };
+
+        if (typeof id === 'string') {
+            clearDeletedDate(id);
+        } else {
+            (id as string[]).forEach(clearDeletedDate);
+        }
+
+        await this.storageService.save(Keys.ciphersPrefix + userId, ciphers);
+        this.decryptedCipherCache = null;
+    }
+
+    async restoreWithServer(id: string): Promise<any> {
+        await this.apiService.putRestoreCipher(id);
+        await this.restore(id);
+    }
+
+    async restoreManyWithServer(ids: string[]): Promise<any> {
+        await this.apiService.putRestoreManyCiphers(new CipherBulkRestoreRequest(ids));
+        await this.restore(ids);
+    }
+
     // Helpers
 
     private async shareAttachmentWithServer(attachmentView: AttachmentView, cipherId: string,
@@ -930,5 +1010,17 @@ export class CipherService implements CipherServiceAbstraction {
             default:
                 throw new Error('Unknown cipher type.');
         }
+    }
+
+    private async getCipherForUrl(url: string, lastUsed: boolean): Promise<CipherView> {
+        if (!this.sortedCiphersCache.isCached(url)) {
+            const ciphers = await this.getAllDecryptedForUrl(url);
+            if (!ciphers) {
+                return null;
+            }
+            this.sortedCiphersCache.addCiphers(url, ciphers);
+        }
+
+        return lastUsed ? this.sortedCiphersCache.getLastUsed(url) : this.sortedCiphersCache.getNext(url);
     }
 }

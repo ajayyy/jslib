@@ -5,6 +5,7 @@ import { EnvironmentUrls } from '../models/domain/environmentUrls';
 import { BitPayInvoiceRequest } from '../models/request/bitPayInvoiceRequest';
 import { CipherBulkDeleteRequest } from '../models/request/cipherBulkDeleteRequest';
 import { CipherBulkMoveRequest } from '../models/request/cipherBulkMoveRequest';
+import { CipherBulkRestoreRequest } from '../models/request/cipherBulkRestoreRequest';
 import { CipherBulkShareRequest } from '../models/request/cipherBulkShareRequest';
 import { CipherCollectionsRequest } from '../models/request/cipherCollectionsRequest';
 import { CipherCreateRequest } from '../models/request/cipherCreateRequest';
@@ -24,6 +25,7 @@ import { ImportOrganizationCiphersRequest } from '../models/request/importOrgani
 import { KdfRequest } from '../models/request/kdfRequest';
 import { KeysRequest } from '../models/request/keysRequest';
 import { OrganizationCreateRequest } from '../models/request/organizationCreateRequest';
+import { OrganizationTaxInfoUpdateRequest } from '../models/request/organizationTaxInfoUpdateRequest';
 import { OrganizationUpdateRequest } from '../models/request/organizationUpdateRequest';
 import { OrganizationUpgradeRequest } from '../models/request/organizationUpgradeRequest';
 import { OrganizationUserAcceptRequest } from '../models/request/organizationUserAcceptRequest';
@@ -40,7 +42,9 @@ import { PreloginRequest } from '../models/request/preloginRequest';
 import { RegisterRequest } from '../models/request/registerRequest';
 import { SeatRequest } from '../models/request/seatRequest';
 import { SelectionReadOnlyRequest } from '../models/request/selectionReadOnlyRequest';
+import { SetPasswordRequest } from '../models/request/setPasswordRequest';
 import { StorageRequest } from '../models/request/storageRequest';
+import { TaxInfoUpdateRequest } from '../models/request/taxInfoUpdateRequest';
 import { TokenRequest } from '../models/request/tokenRequest';
 import { TwoFactorEmailRequest } from '../models/request/twoFactorEmailRequest';
 import { TwoFactorProviderRequest } from '../models/request/twoFactorProviderRequest';
@@ -83,12 +87,14 @@ import {
     OrganizationUserUserDetailsResponse,
 } from '../models/response/organizationUserResponse';
 import { PaymentResponse } from '../models/response/paymentResponse';
+import { PlanResponse } from '../models/response/planResponse';
 import { PolicyResponse } from '../models/response/policyResponse';
 import { PreloginResponse } from '../models/response/preloginResponse';
 import { ProfileResponse } from '../models/response/profileResponse';
 import { SelectionReadOnlyResponse } from '../models/response/selectionReadOnlyResponse';
 import { SubscriptionResponse } from '../models/response/subscriptionResponse';
 import { SyncResponse } from '../models/response/syncResponse';
+import { TaxInfoResponse } from '../models/response/taxInfoResponse';
 import { TwoFactorAuthenticatorResponse } from '../models/response/twoFactorAuthenticatorResponse';
 import { TwoFactorDuoResponse } from '../models/response/twoFactorDuoResponse';
 import { TwoFactorEmailResponse } from '../models/response/twoFactorEmailResponse';
@@ -114,11 +120,14 @@ export abstract class ApiService {
     getProfile: () => Promise<ProfileResponse>;
     getUserBilling: () => Promise<BillingResponse>;
     getUserSubscription: () => Promise<SubscriptionResponse>;
+    getTaxInfo: () => Promise<TaxInfoResponse>;
     putProfile: (request: UpdateProfileRequest) => Promise<ProfileResponse>;
+    putTaxInfo: (request: TaxInfoUpdateRequest) => Promise<any>;
     postPrelogin: (request: PreloginRequest) => Promise<PreloginResponse>;
     postEmailToken: (request: EmailTokenRequest) => Promise<any>;
     postEmail: (request: EmailRequest) => Promise<any>;
     postPassword: (request: PasswordRequest) => Promise<any>;
+    setPassword: (request: SetPasswordRequest) => Promise<any>;
     postSecurityStamp: (request: PasswordVerificationRequest) => Promise<any>;
     deleteAccount: (request: PasswordVerificationRequest) => Promise<any>;
     getAccountRevisionDate: () => Promise<number>;
@@ -135,9 +144,11 @@ export abstract class ApiService {
     postAccountKeys: (request: KeysRequest) => Promise<any>;
     postAccountVerifyEmail: () => Promise<any>;
     postAccountVerifyEmailToken: (request: VerifyEmailRequest) => Promise<any>;
+    postAccountVerifyPassword: (request: PasswordVerificationRequest) => Promise<any>;
     postAccountRecoverDelete: (request: DeleteRecoverRequest) => Promise<any>;
     postAccountRecoverDeleteToken: (request: VerifyDeleteRecoverRequest) => Promise<any>;
     postAccountKdf: (request: KdfRequest) => Promise<any>;
+    getEnterprisePortalSignInToken: () => Promise<string>;
 
     getFolder: (id: string) => Promise<FolderResponse>;
     postFolder: (request: FolderRequest) => Promise<FolderResponse>;
@@ -155,6 +166,7 @@ export abstract class ApiService {
     deleteCipher: (id: string) => Promise<any>;
     deleteCipherAdmin: (id: string) => Promise<any>;
     deleteManyCiphers: (request: CipherBulkDeleteRequest) => Promise<any>;
+    deleteManyCiphersAdmin: (request: CipherBulkDeleteRequest) => Promise<any>;
     putMoveCiphers: (request: CipherBulkMoveRequest) => Promise<any>;
     putShareCipher: (id: string, request: CipherShareRequest) => Promise<CipherResponse>;
     putShareCiphers: (request: CipherBulkShareRequest) => Promise<any>;
@@ -163,6 +175,13 @@ export abstract class ApiService {
     postPurgeCiphers: (request: PasswordVerificationRequest, organizationId?: string) => Promise<any>;
     postImportCiphers: (request: ImportCiphersRequest) => Promise<any>;
     postImportOrganizationCiphers: (organizationId: string, request: ImportOrganizationCiphersRequest) => Promise<any>;
+    putDeleteCipher: (id: string) => Promise<any>;
+    putDeleteCipherAdmin: (id: string) => Promise<any>;
+    putDeleteManyCiphers: (request: CipherBulkDeleteRequest) => Promise<any>;
+    putDeleteManyCiphersAdmin: (request: CipherBulkDeleteRequest) => Promise<any>;
+    putRestoreCipher: (id: string) => Promise<any>;
+    putRestoreCipherAdmin: (id: string) => Promise<any>;
+    putRestoreManyCiphers: (request: CipherBulkRestoreRequest) => Promise<any>;
 
     postCipherAttachment: (id: string, data: FormData) => Promise<CipherResponse>;
     postCipherAttachmentAdmin: (id: string, data: FormData) => Promise<CipherResponse>;
@@ -192,6 +211,8 @@ export abstract class ApiService {
 
     getPolicy: (organizationId: string, type: PolicyType) => Promise<PolicyResponse>;
     getPolicies: (organizationId: string) => Promise<ListResponse<PolicyResponse>>;
+    getPoliciesByToken: (organizationId: string, token: string, email: string, organizationUserId: string) =>
+        Promise<ListResponse<PolicyResponse>>;
     putPolicy: (organizationId: string, type: PolicyType, request: PolicyRequest) => Promise<PolicyResponse>;
 
     getOrganizationUser: (organizationId: string, id: string) => Promise<OrganizationUserDetailsResponse>;
@@ -245,8 +266,10 @@ export abstract class ApiService {
     getOrganizationBilling: (id: string) => Promise<BillingResponse>;
     getOrganizationSubscription: (id: string) => Promise<OrganizationSubscriptionResponse>;
     getOrganizationLicense: (id: string, installationId: string) => Promise<any>;
+    getOrganizationTaxInfo: (id: string) => Promise<TaxInfoResponse>;
     postOrganization: (request: OrganizationCreateRequest) => Promise<OrganizationResponse>;
     putOrganization: (id: string, request: OrganizationUpdateRequest) => Promise<OrganizationResponse>;
+    putOrganizationTaxInfo: (id: string, request: OrganizationTaxInfoUpdateRequest) => Promise<any>;
     postLeaveOrganization: (id: string) => Promise<any>;
     postOrganizationLicense: (data: FormData) => Promise<OrganizationResponse>;
     postOrganizationLicenseUpdate: (id: string, data: FormData) => Promise<any>;
@@ -260,6 +283,7 @@ export abstract class ApiService {
     postOrganizationCancel: (id: string) => Promise<any>;
     postOrganizationReinstate: (id: string) => Promise<any>;
     deleteOrganization: (id: string, request: PasswordVerificationRequest) => Promise<any>;
+    getPlans: () => Promise<ListResponse<PlanResponse>>;
 
     getEvents: (start: string, end: string, token: string) => Promise<ListResponse<EventResponse>>;
     getEventsCipher: (id: string, start: string, end: string, token: string) => Promise<ListResponse<EventResponse>>;
@@ -268,6 +292,9 @@ export abstract class ApiService {
     getEventsOrganizationUser: (organizationId: string, id: string,
         start: string, end: string, token: string) => Promise<ListResponse<EventResponse>>;
     postEventsCollect: (request: EventRequest[]) => Promise<any>;
+
+    deleteSsoUser: (organizationId: string) => Promise<any>;
+    getSsoUserIdentifier: () => Promise<string>;
 
     getUserPublicKey: (id: string) => Promise<UserKeyResponse>;
 
@@ -279,4 +306,6 @@ export abstract class ApiService {
     getActiveBearerToken: () => Promise<string>;
     fetch: (request: Request) => Promise<Response>;
     nativeFetch: (request: Request) => Promise<Response>;
+
+    preValidateSso: (identifier: string) => Promise<boolean>;
 }

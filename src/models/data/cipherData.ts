@@ -16,6 +16,7 @@ export class CipherData {
     folderId: string;
     userId: string;
     edit: boolean;
+    viewPassword: boolean;
     organizationUseTotp: boolean;
     favorite: boolean;
     revisionDate: string;
@@ -31,6 +32,7 @@ export class CipherData {
     attachments?: AttachmentData[];
     passwordHistory?: PasswordHistoryData[];
     collectionIds?: string[];
+    deletedDate: string;
 
     constructor(response?: CipherResponse, userId?: string, collectionIds?: string[]) {
         if (response == null) {
@@ -42,6 +44,7 @@ export class CipherData {
         this.folderId = response.folderId;
         this.userId = userId;
         this.edit = response.edit;
+        this.viewPassword = response.viewPassword;
         this.organizationUseTotp = response.organizationUseTotp;
         this.favorite = response.favorite;
         this.revisionDate = response.revisionDate;
@@ -49,6 +52,7 @@ export class CipherData {
         this.name = response.name;
         this.notes = response.notes;
         this.collectionIds = collectionIds != null ? collectionIds : response.collectionIds;
+        this.deletedDate = response.deletedDate;
 
         switch (this.type) {
             case CipherType.Login:
