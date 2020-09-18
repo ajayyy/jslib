@@ -50,7 +50,6 @@ import { ConstantsService } from './constants.service';
 
 import { sequentialize } from '../misc/sequentialize';
 import { Utils } from '../misc/utils';
-import { i18n } from '@angular/core/src/render3';
 
 const Keys = {
     ciphersPrefix: 'ciphers_',
