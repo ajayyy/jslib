@@ -148,6 +148,7 @@ export class CipherService implements CipherServiceAbstraction {
         cipher.organizationId = model.organizationId;
         cipher.type = model.type;
         cipher.collectionIds = model.collectionIds;
+        cipher.revisionDate = model.revisionDate;
 
         if (key == null && cipher.organizationId != null) {
             key = await this.cryptoService.getOrgKey(cipher.organizationId);
@@ -333,7 +334,8 @@ export class CipherService implements CipherServiceAbstraction {
         });
     }
 
-    async getAllDecryptedForUrl(url: string, includeOtherTypes?: CipherType[]): Promise<CipherView[]> {
+    async getAllDecryptedForUrl(url: string, includeOtherTypes?: CipherType[],
+        defaultMatch: UriMatchType = null): Promise<CipherView[]> {
         if (url == null && includeOtherTypes == null) {
             return Promise.resolve([]);
         }
@@ -359,9 +361,11 @@ export class CipherService implements CipherServiceAbstraction {
         const matchingDomains = result[0];
         const ciphers = result[1];
 
-        let defaultMatch = await this.storageService.get<UriMatchType>(ConstantsService.defaultUriMatch);
         if (defaultMatch == null) {
-            defaultMatch = UriMatchType.Domain;
+            defaultMatch = await this.storageService.get<UriMatchType>(ConstantsService.defaultUriMatch);
+            if (defaultMatch == null) {
+                defaultMatch = UriMatchType.Domain;
+            }
         }
 
         return ciphers.filter((cipher) => {
@@ -447,11 +451,19 @@ export class CipherService implements CipherServiceAbstraction {
     }
 
     async getLastUsedForUrl(url: string): Promise<CipherView> {
-        return this.getCipherForUrl(url, true);
+        return this.getCipherForUrl(url, true, false);
+    }
+
+    async getLastLaunchedForUrl(url: string): Promise<CipherView> {
+        return this.getCipherForUrl(url, false, true);
     }
 
     async getNextCipherForUrl(url: string): Promise<CipherView> {
-        return this.getCipherForUrl(url, false);
+        return this.getCipherForUrl(url, false, false);
+    }
+
+    updateLastUsedIndexForUrl(url: string) {
+        this.sortedCiphersCache.updateLastUsedIndex(url);
     }
 
     async updateLastUsedDate(id: string): Promise<void> {
@@ -462,6 +474,35 @@ export class CipherService implements CipherServiceAbstraction {
 
         if (ciphersLocalData[id]) {
             ciphersLocalData[id].lastUsedDate = new Date().getTime();
+        } else {
+            ciphersLocalData[id] = {
+                lastUsedDate: new Date().getTime(),
+            };
+        }
+
+        await this.storageService.save(Keys.localData, ciphersLocalData);
+
+        if (this.decryptedCipherCache == null) {
+            return;
+        }
+
+        for (let i = 0; i < this.decryptedCipherCache.length; i++) {
+            const cached = this.decryptedCipherCache[i];
+            if (cached.id === id) {
+                cached.localData = ciphersLocalData[id];
+                break;
+            }
+        }
+    }
+
+    async updateLastLaunchedDate(id: string): Promise<void> {
+        let ciphersLocalData = await this.storageService.get<any>(Keys.localData);
+        if (!ciphersLocalData) {
+            ciphersLocalData = {};
+        }
+
+        if (ciphersLocalData[id]) {
+            ciphersLocalData[id].lastLaunched = new Date().getTime();
         } else {
             ciphersLocalData[id] = {
                 lastUsedDate: new Date().getTime(),
@@ -1011,7 +1052,7 @@ export class CipherService implements CipherServiceAbstraction {
         }
     }
 
-    private async getCipherForUrl(url: string, lastUsed: boolean): Promise<CipherView> {
+    private async getCipherForUrl(url: string, lastUsed: boolean, lastLaunched: boolean): Promise<CipherView> {
         if (!this.sortedCiphersCache.isCached(url)) {
             const ciphers = await this.getAllDecryptedForUrl(url);
             if (!ciphers) {
@@ -1020,6 +1061,12 @@ export class CipherService implements CipherServiceAbstraction {
             this.sortedCiphersCache.addCiphers(url, ciphers);
         }
 
-        return lastUsed ? this.sortedCiphersCache.getLastUsed(url) : this.sortedCiphersCache.getNext(url);
+        if (lastLaunched) {
+            return this.sortedCiphersCache.getLastLaunched(url);
+        } else if (lastUsed) {
+            return this.sortedCiphersCache.getLastUsed(url);
+        } else {
+            return this.sortedCiphersCache.getNext(url);
+        }
     }
 }

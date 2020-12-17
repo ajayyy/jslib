@@ -51,8 +51,8 @@ export class SsoComponent {
                 const state = await this.storageService.get<string>(ConstantsService.ssoStateKey);
                 await this.storageService.remove(ConstantsService.ssoCodeVerifierKey);
                 await this.storageService.remove(ConstantsService.ssoStateKey);
-                if (qParams.code != null && codeVerifier != null && state != null && state === qParams.state) {
-                    await this.logIn(qParams.code, codeVerifier);
+                if (qParams.code != null && codeVerifier != null && state != null && this.checkState(state, qParams.state)) {
+                    await this.logIn(qParams.code, codeVerifier, this.getOrgIdentiferFromState(qParams.state));
                 }
             } else if (qParams.clientId != null && qParams.redirectUri != null && qParams.state != null &&
                 qParams.codeChallenge != null) {
@@ -109,9 +109,13 @@ export class SsoComponent {
             if (returnUri) {
                 state += `_returnUri='${returnUri}'`;
             }
-
-            await this.storageService.save(ConstantsService.ssoStateKey, state);
         }
+
+        // Add Organization Identifier to state
+        state += `_identifier=${this.identifier}`;
+
+        // Save state (regardless of new or existing)
+        await this.storageService.save(ConstantsService.ssoStateKey, state);
 
         let authorizeUrl = this.apiService.identityBaseUrl + '/connect/authorize?' +
             'client_id=' + this.clientId + '&redirect_uri=' + encodeURIComponent(this.redirectUri) + '&' +
@@ -128,7 +132,7 @@ export class SsoComponent {
         return authorizeUrl;
     }
 
-    private async logIn(code: string, codeVerifier: string) {
+    private async logIn(code: string, codeVerifier: string, orgIdFromState: string) {
         this.loggingIn = true;
         try {
             this.formPromise = this.authService.logInSso(code, codeVerifier, this.redirectUri);
@@ -140,7 +144,8 @@ export class SsoComponent {
                 } else {
                     this.router.navigate([this.twoFactorRoute], {
                         queryParams: {
-                            resetMasterPassword: response.resetMasterPassword,
+                            identifier: orgIdFromState,
+                            sso: 'true'
                         },
                     });
                 }
@@ -149,7 +154,11 @@ export class SsoComponent {
                 if (this.onSuccessfulLoginChangePasswordNavigate != null) {
                     this.onSuccessfulLoginChangePasswordNavigate();
                 } else {
-                    this.router.navigate([this.changePasswordRoute]);
+                    this.router.navigate([this.changePasswordRoute], {
+                        queryParams: {
+                            identifier: orgIdFromState,
+                        },
+                    });
                 }
             } else {
                 const disableFavicon = await this.storageService.get<boolean>(ConstantsService.disableFaviconKey);
@@ -166,5 +175,27 @@ export class SsoComponent {
             }
         } catch { }
         this.loggingIn = false;
+    }
+
+    private getOrgIdentiferFromState(state: string): string {
+        if (state === null || state === undefined) {
+            return null;
+        }
+
+        const stateSplit = state.split('_identifier=');
+        return stateSplit.length > 1 ? stateSplit[1] : null;
+    }
+
+    private checkState(state: string, checkState: string): boolean {
+        if (state === null || state === undefined) {
+            return false;
+        }
+        if (checkState === null || checkState === undefined) {
+            return false;
+        }
+
+        const stateSplit = state.split('_identifier=');
+        const checkStateSplit = checkState.split('_identifier=');
+        return stateSplit[0] === checkStateSplit[0];
     }
 }
