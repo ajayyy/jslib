@@ -16,6 +16,7 @@ import {
     NotificationResponse,
     SyncCipherNotification,
     SyncFolderNotification,
+    SyncSendNotification,
 } from '../models/response/notificationResponse';
 
 export class NotificationsService implements NotificationsServiceAbstraction {
@@ -61,7 +62,7 @@ export class NotificationsService implements NotificationsServiceAbstraction {
                 skipNegotiation: true,
                 transport: signalR.HttpTransportType.WebSockets,
             })
-            .withHubProtocol(new signalRMsgPack.MessagePackHubProtocol())
+            .withHubProtocol(new signalRMsgPack.MessagePackHubProtocol() as signalR.IHubProtocol)
             // .configureLogging(signalR.LogLevel.Trace)
             .build();
 
@@ -159,6 +160,13 @@ export class NotificationsService implements NotificationsServiceAbstraction {
                     this.logoutCallback();
                 }
                 break;
+            case NotificationType.SyncSendCreate:
+            case NotificationType.SyncSendUpdate:
+                await this.syncService.syncUpsertSend(notification.payload as SyncSendNotification,
+                    notification.type === NotificationType.SyncSendUpdate);
+                break;
+            case NotificationType.SyncSendDelete:
+                await this.syncService.syncDeleteSend(notification.payload as SyncSendNotification);
             default:
                 break;
         }

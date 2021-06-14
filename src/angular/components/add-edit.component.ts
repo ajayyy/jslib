@@ -159,10 +159,10 @@ export class AddEditComponent implements OnInit {
         const myEmail = await this.userService.getEmail();
         this.ownershipOptions.push({ name: myEmail, value: null });
         const orgs = await this.userService.getAllOrganizations();
-        orgs.sort(Utils.getSortFunction(this.i18nService, 'name')).forEach((o) => {
+        orgs.sort(Utils.getSortFunction(this.i18nService, 'name')).forEach(o => {
             if (o.enabled && o.status === OrganizationUserStatusType.Confirmed) {
                 this.ownershipOptions.push({ name: o.name, value: o.id });
-                if (policies != null && o.usePolicies && !o.isAdmin && this.allowPersonal) {
+                if (policies != null && o.usePolicies && !o.canManagePolicies && this.allowPersonal) {
                     for (const policy of policies) {
                         if (policy.organizationId === o.id && policy.enabled) {
                             this.allowPersonal = false;
@@ -209,6 +209,10 @@ export class AddEditComponent implements OnInit {
                 // Adjust Cipher Name if Cloning
                 if (this.cloneMode) {
                     this.cipher.name += ' - ' + this.i18nService.t('clone');
+                    // If not allowing personal ownership, update cipher's org Id to prompt downstream changes
+                    if (this.cipher.organizationId == null && !this.allowPersonal) {
+                        this.cipher.organizationId = this.organizationId;
+                    }
                 }
             } else {
                 this.cipher = new CipherView();
@@ -227,7 +231,7 @@ export class AddEditComponent implements OnInit {
         if (this.cipher != null && (!this.editMode || addEditCipherInfo != null || this.cloneMode)) {
             await this.organizationChanged();
             if (this.collectionIds != null && this.collectionIds.length > 0 && this.collections.length > 0) {
-                this.collections.forEach((c) => {
+                this.collections.forEach(c => {
                     if (this.collectionIds.indexOf(c.id) > -1) {
                         (c as any).checked = true;
                     }
@@ -269,7 +273,7 @@ export class AddEditComponent implements OnInit {
         // Allows saving of selected collections during "Add" and "Clone" flows
         if ((!this.editMode || this.cloneMode) && this.cipher.organizationId != null) {
             this.cipher.collectionIds = this.collections == null ? [] :
-                this.collections.filter((c) => (c as any).checked).map((c) => c.id);
+                this.collections.filter(c => (c as any).checked).map(c => c.id);
         }
 
         // Clear current Cipher Id to trigger "Add" cipher flow
@@ -282,7 +286,6 @@ export class AddEditComponent implements OnInit {
             this.formPromise = this.saveCipher(cipher);
             await this.formPromise;
             this.cipher.id = cipher.id;
-            this.platformUtilsService.eventTrack(this.editMode && !this.cloneMode ? 'Edited Cipher' : 'Added Cipher');
             this.platformUtilsService.showToast('success', null,
                 this.i18nService.t(this.editMode && !this.cloneMode ? 'editedItem' : 'addedItem'));
             this.onSavedCipher.emit(this.cipher);
@@ -365,7 +368,6 @@ export class AddEditComponent implements OnInit {
         try {
             this.deletePromise = this.deleteCipher();
             await this.deletePromise;
-            this.platformUtilsService.eventTrack((this.cipher.isDeleted ? 'Permanently ' : '') + 'Deleted Cipher');
             this.platformUtilsService.showToast('success', null,
                 this.i18nService.t(this.cipher.isDeleted ? 'permanentlyDeletedItem' : 'deletedItem'));
             this.onDeletedCipher.emit(this.cipher);
@@ -390,7 +392,6 @@ export class AddEditComponent implements OnInit {
         try {
             this.restorePromise = this.restoreCipher();
             await this.restorePromise;
-            this.platformUtilsService.eventTrack('Restored Cipher');
             this.platformUtilsService.showToast('success', null, this.i18nService.t('restoredItem'));
             this.onRestoredCipher.emit(this.cipher);
             this.messagingService.send('restoredCipher');
@@ -414,7 +415,6 @@ export class AddEditComponent implements OnInit {
     }
 
     togglePassword() {
-        this.platformUtilsService.eventTrack('Toggled Password on Edit');
         this.showPassword = !this.showPassword;
         document.getElementById('loginPassword').focus();
         if (this.editMode && this.showPassword) {
@@ -423,7 +423,6 @@ export class AddEditComponent implements OnInit {
     }
 
     toggleCardCode() {
-        this.platformUtilsService.eventTrack('Toggled CardCode on Edit');
         this.showCardCode = !this.showCardCode;
         document.getElementById('cardCode').focus();
         if (this.editMode && this.showCardCode) {
@@ -455,10 +454,10 @@ export class AddEditComponent implements OnInit {
 
     async organizationChanged() {
         if (this.writeableCollections != null) {
-            this.writeableCollections.forEach((c) => (c as any).checked = false);
+            this.writeableCollections.forEach(c => (c as any).checked = false);
         }
         if (this.cipher.organizationId != null) {
-            this.collections = this.writeableCollections.filter((c) => c.organizationId === this.cipher.organizationId);
+            this.collections = this.writeableCollections.filter(c => c.organizationId === this.cipher.organizationId);
             const org = await this.userService.getOrganization(this.cipher.organizationId);
             if (org != null) {
                 this.cipher.organizationUseTotp = org.useTotp;
@@ -477,7 +476,6 @@ export class AddEditComponent implements OnInit {
             return;
         }
 
-        this.platformUtilsService.eventTrack('Check Password');
         this.checkPasswordPromise = this.auditService.passwordLeaked(this.cipher.login.password);
         const matches = await this.checkPasswordPromise;
         this.checkPasswordPromise = null;
@@ -492,7 +490,7 @@ export class AddEditComponent implements OnInit {
 
     protected async loadCollections() {
         const allCollections = await this.collectionService.getAllDecrypted();
-        return allCollections.filter((c) => !c.readOnly);
+        return allCollections.filter(c => !c.readOnly);
     }
 
     protected loadCipher() {

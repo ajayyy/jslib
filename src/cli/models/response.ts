@@ -7,7 +7,8 @@ export class Response {
         if (typeof (error) === 'string') {
             res.message = error;
         } else {
-            res.message = error.message != null ? error.message : error.toString();
+            res.message = error.message != null ? error.message :
+                error.toString() === '[object Object]' ? JSON.stringify(error) : error.toString();
         }
         res.data = data;
         return res;
@@ -24,7 +25,7 @@ export class Response {
     static multipleResults(ids: string[]): Response {
         let msg = 'More than one result was found. Try getting a specific object by `id` instead. ' +
             'The following objects were found:';
-        ids.forEach((id) => {
+        ids.forEach(id => {
             msg += '\n' + id;
         });
         return Response.error(msg, ids);

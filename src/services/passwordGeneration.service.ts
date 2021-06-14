@@ -1,6 +1,6 @@
 import * as zxcvbn from 'zxcvbn';
 
-import { CipherString } from '../models/domain/cipherString';
+import { EncString } from '../models/domain/encString';
 import { GeneratedPasswordHistory } from '../models/domain/generatedPasswordHistory';
 import { PasswordGeneratorPolicyOptions } from '../models/domain/passwordGeneratorPolicyOptions';
 import { Policy } from '../models/domain/policy';
@@ -269,7 +269,7 @@ export class PasswordGenerationService implements PasswordGenerationServiceAbstr
             return enforcedOptions;
         }
 
-        policies.forEach((currentPolicy) => {
+        policies.forEach(currentPolicy => {
             if (!currentPolicy.enabled || currentPolicy.data == null) {
                 return;
             }
@@ -471,7 +471,7 @@ export class PasswordGenerationService implements PasswordGenerationServiceAbstr
             return Promise.resolve([]);
         }
 
-        const promises = history.map(async (item) => {
+        const promises = history.map(async item => {
             const encrypted = await this.cryptoService.encrypt(item.password);
             return new GeneratedPasswordHistory(encrypted.encryptedString, item.date);
         });
@@ -484,8 +484,8 @@ export class PasswordGenerationService implements PasswordGenerationServiceAbstr
             return Promise.resolve([]);
         }
 
-        const promises = history.map(async (item) => {
-            const decrypted = await this.cryptoService.decryptToUtf8(new CipherString(item.password));
+        const promises = history.map(async item => {
+            const decrypted = await this.cryptoService.decryptToUtf8(new EncString(item.password));
             return new GeneratedPasswordHistory(decrypted, item.date);
         });
 

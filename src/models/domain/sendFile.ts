@@ -1,5 +1,5 @@
-import { CipherString } from './cipherString';
 import Domain from './domainBase';
+import { EncString } from './encString';
 import { SymmetricCryptoKey } from './symmetricCryptoKey';
 
 import { SendFileData } from '../data/sendFileData';
@@ -8,10 +8,9 @@ import { SendFileView } from '../view/sendFileView';
 
 export class SendFile extends Domain {
     id: string;
-    url: string;
     size: string;
     sizeName: string;
-    fileName: CipherString;
+    fileName: EncString;
 
     constructor(obj?: SendFileData, alreadyEncrypted: boolean = false) {
         super();
@@ -22,10 +21,9 @@ export class SendFile extends Domain {
         this.size = obj.size;
         this.buildDomainModel(this, obj, {
             id: null,
-            url: null,
             sizeName: null,
             fileName: null,
-        }, alreadyEncrypted, ['id', 'url', 'sizeName']);
+        }, alreadyEncrypted, ['id', 'sizeName']);
     }
 
     async decrypt(key: SymmetricCryptoKey): Promise<SendFileView> {
@@ -33,17 +31,5 @@ export class SendFile extends Domain {
             fileName: null,
         }, null, key);
         return view;
-    }
-
-    toSendFileData(): SendFileData {
-        const f = new SendFileData();
-        f.size = this.size;
-        this.buildDataModel(this, f, {
-            id: null,
-            url: null,
-            sizeName: null,
-            fileName: null,
-        }, ['id', 'url', 'sizeName']);
-        return f;
     }
 }

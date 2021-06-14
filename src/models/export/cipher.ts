@@ -3,7 +3,7 @@ import { CipherType } from '../../enums/cipherType';
 import { CipherView } from '../view/cipherView';
 
 import { Cipher as CipherDomain } from '../domain/cipher';
-import { CipherString } from '../domain/cipherString';
+import { EncString } from '../domain/encString';
 
 import { Card } from './card';
 import { Field } from './field';
@@ -15,6 +15,7 @@ export class Cipher {
     static template(): Cipher {
         const req = new Cipher();
         req.organizationId = null;
+        req.collectionIds = null;
         req.folderId = null;
         req.type = CipherType.Login;
         req.name = 'Item name';
@@ -34,12 +35,16 @@ export class Cipher {
         if (view.organizationId == null) {
             view.organizationId = req.organizationId;
         }
+        if (view.collectionIds || req.collectionIds) {
+            const set = new Set((view.collectionIds ?? []).concat(req.collectionIds ?? []));
+            view.collectionIds = Array.from(set.values());
+        }
         view.name = req.name;
         view.notes = req.notes;
         view.favorite = req.favorite;
 
         if (req.fields != null) {
-            view.fields = req.fields.map((f) => Field.toView(f));
+            view.fields = req.fields.map(f => Field.toView(f));
         }
 
         switch (req.type) {
@@ -66,12 +71,12 @@ export class Cipher {
         if (domain.organizationId == null) {
             domain.organizationId = req.organizationId;
         }
-        domain.name = req.name != null ? new CipherString(req.name) : null;
-        domain.notes = req.notes != null ? new CipherString(req.notes) : null;
+        domain.name = req.name != null ? new EncString(req.name) : null;
+        domain.notes = req.notes != null ? new EncString(req.notes) : null;
         domain.favorite = req.favorite;
 
         if (req.fields != null) {
-            domain.fields = req.fields.map((f) => Field.toDomain(f));
+            domain.fields = req.fields.map(f => Field.toDomain(f));
         }
 
         switch (req.type) {
@@ -95,6 +100,7 @@ export class Cipher {
     type: CipherType;
     folderId: string;
     organizationId: string;
+    collectionIds: string[];
     name: string;
     notes: string;
     favorite: boolean;
@@ -122,9 +128,9 @@ export class Cipher {
 
         if (o.fields != null) {
             if (o instanceof CipherView) {
-                this.fields = o.fields.map((f) => new Field(f));
+                this.fields = o.fields.map(f => new Field(f));
             } else {
-                this.fields = o.fields.map((f) => new Field(f));
+                this.fields = o.fields.map(f => new Field(f));
             }
         }
 

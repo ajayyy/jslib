@@ -45,7 +45,7 @@ export class SsoComponent {
         protected passwordGenerationService: PasswordGenerationService) { }
 
     async ngOnInit() {
-        const queryParamsSub = this.route.queryParams.subscribe(async (qParams) => {
+        const queryParamsSub = this.route.queryParams.subscribe(async qParams => {
             if (qParams.code != null && qParams.state != null) {
                 const codeVerifier = await this.storageService.get<string>(ConstantsService.ssoCodeVerifierKey);
                 const state = await this.storageService.get<string>(ConstantsService.ssoStateKey);
@@ -138,19 +138,17 @@ export class SsoComponent {
             this.formPromise = this.authService.logInSso(code, codeVerifier, this.redirectUri);
             const response = await this.formPromise;
             if (response.twoFactor) {
-                this.platformUtilsService.eventTrack('SSO Logged In To Two-step');
                 if (this.onSuccessfulLoginTwoFactorNavigate != null) {
                     this.onSuccessfulLoginTwoFactorNavigate();
                 } else {
                     this.router.navigate([this.twoFactorRoute], {
                         queryParams: {
                             identifier: orgIdFromState,
-                            sso: 'true'
+                            sso: 'true',
                         },
                     });
                 }
             } else if (response.resetMasterPassword) {
-                this.platformUtilsService.eventTrack('SSO - routing to complete registration');
                 if (this.onSuccessfulLoginChangePasswordNavigate != null) {
                     this.onSuccessfulLoginChangePasswordNavigate();
                 } else {
@@ -166,7 +164,6 @@ export class SsoComponent {
                 if (this.onSuccessfulLogin != null) {
                     this.onSuccessfulLogin();
                 }
-                this.platformUtilsService.eventTrack('SSO Logged In');
                 if (this.onSuccessfulLoginNavigate != null) {
                     this.onSuccessfulLoginNavigate();
                 } else {

@@ -15,8 +15,8 @@ export class UpdateCommand {
         this.inPkg = !!(process as any).pkg;
     }
 
-    async run(cmd: program.Command): Promise<Response> {
-        const currentVersion = this.platformUtilsService.getApplicationVersion();
+    async run(): Promise<Response> {
+        const currentVersion = await this.platformUtilsService.getApplicationVersion();
 
         const response = await fetch.default('https://api.github.com/repos/bitwarden/' +
             this.repoName + '/releases/latest');

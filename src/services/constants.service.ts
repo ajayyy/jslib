@@ -5,6 +5,7 @@ export class ConstantsService {
     static readonly disableChangedPasswordNotificationKey: string = 'disableChangedPasswordNotification';
     static readonly disableContextMenuItemKey: string = 'disableContextMenuItem';
     static readonly disableFaviconKey: string = 'disableFavicon';
+    static readonly disableBadgeCounterKey: string = 'disableBadgeCounter';
     static readonly disableAutoTotpCopyKey: string = 'disableAutoTotpCopy';
     static readonly enableAutoFillOnPageLoadKey: string = 'enableAutoFillOnPageLoad';
     static readonly vaultTimeoutKey: string = 'lockOption';
@@ -32,12 +33,14 @@ export class ConstantsService {
     static readonly biometricUnlockKey: string = 'biometric';
     static readonly biometricText: string = 'biometricText';
     static readonly biometricAwaitingAcceptance: string = 'biometricAwaitingAcceptance';
+    static readonly biometricFingerprintValidated: string = 'biometricFingerprintValidated';
 
     readonly environmentUrlsKey: string = ConstantsService.environmentUrlsKey;
     readonly disableGaKey: string = ConstantsService.disableGaKey;
     readonly disableAddLoginNotificationKey: string = ConstantsService.disableAddLoginNotificationKey;
     readonly disableContextMenuItemKey: string = ConstantsService.disableContextMenuItemKey;
     readonly disableFaviconKey: string = ConstantsService.disableFaviconKey;
+    readonly disableBadgeCounterKey: string = ConstantsService.disableBadgeCounterKey;
     readonly disableAutoTotpCopyKey: string = ConstantsService.disableAutoTotpCopyKey;
     readonly enableAutoFillOnPageLoadKey: string = ConstantsService.enableAutoFillOnPageLoadKey;
     readonly vaultTimeoutKey: string = ConstantsService.vaultTimeoutKey;
@@ -62,4 +65,5 @@ export class ConstantsService {
     readonly biometricUnlockKey: string = ConstantsService.biometricUnlockKey;
     readonly biometricText: string = ConstantsService.biometricText;
     readonly biometricAwaitingAcceptance: string = ConstantsService.biometricAwaitingAcceptance;
+    readonly biometricFingerprintValidated: string = ConstantsService.biometricFingerprintValidated;
 }

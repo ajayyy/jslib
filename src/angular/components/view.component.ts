@@ -13,6 +13,7 @@ import { CipherType } from '../../enums/cipherType';
 import { EventType } from '../../enums/eventType';
 import { FieldType } from '../../enums/fieldType';
 
+import { ApiService } from '../../abstractions/api.service';
 import { AuditService } from '../../abstractions/audit.service';
 import { CipherService } from '../../abstractions/cipher.service';
 import { CryptoService } from '../../abstractions/crypto.service';
@@ -22,6 +23,8 @@ import { PlatformUtilsService } from '../../abstractions/platformUtils.service';
 import { TokenService } from '../../abstractions/token.service';
 import { TotpService } from '../../abstractions/totp.service';
 import { UserService } from '../../abstractions/user.service';
+
+import { ErrorResponse } from '../../models/response/errorResponse';
 
 import { AttachmentView } from '../../models/view/attachmentView';
 import { CipherView } from '../../models/view/cipherView';
@@ -61,7 +64,7 @@ export class ViewComponent implements OnDestroy, OnInit {
         protected auditService: AuditService, protected win: Window,
         protected broadcasterService: BroadcasterService, protected ngZone: NgZone,
         protected changeDetectorRef: ChangeDetectorRef, protected userService: UserService,
-        protected eventService: EventService) { }
+        protected eventService: EventService, protected apiService: ApiService) { }
 
     ngOnInit() {
         this.broadcasterService.subscribe(BroadcasterSubscriptionId, (message: any) => {
@@ -129,7 +132,6 @@ export class ViewComponent implements OnDestroy, OnInit {
 
         try {
             await this.deleteCipher();
-            this.platformUtilsService.eventTrack((this.cipher.isDeleted ? 'Permanently ' : '') + 'Deleted Cipher');
             this.platformUtilsService.showToast('success', null,
                 this.i18nService.t(this.cipher.isDeleted ? 'permanentlyDeletedItem' : 'deletedItem'));
             this.onDeletedCipher.emit(this.cipher);
@@ -152,7 +154,6 @@ export class ViewComponent implements OnDestroy, OnInit {
 
         try {
             await this.restoreCipher();
-            this.platformUtilsService.eventTrack('Restored Cipher');
             this.platformUtilsService.showToast('success', null, this.i18nService.t('restoredItem'));
             this.onRestoredCipher.emit(this.cipher);
         } catch { }
@@ -161,7 +162,6 @@ export class ViewComponent implements OnDestroy, OnInit {
     }
 
     togglePassword() {
-        this.platformUtilsService.eventTrack('Toggled Password');
         this.showPassword = !this.showPassword;
         if (this.showPassword) {
             this.eventService.collect(EventType.Cipher_ClientToggledPasswordVisible, this.cipherId);
@@ -169,7 +169,6 @@ export class ViewComponent implements OnDestroy, OnInit {
     }
 
     toggleCardCode() {
-        this.platformUtilsService.eventTrack('Toggled Card Code');
         this.showCardCode = !this.showCardCode;
         if (this.showCardCode) {
             this.eventService.collect(EventType.Cipher_ClientToggledCardCodeVisible, this.cipherId);
@@ -181,7 +180,6 @@ export class ViewComponent implements OnDestroy, OnInit {
             return;
         }
 
-        this.platformUtilsService.eventTrack('Check Password');
         this.checkPasswordPromise = this.auditService.passwordLeaked(this.cipher.login.password);
         const matches = await this.checkPasswordPromise;
 
@@ -210,7 +208,6 @@ export class ViewComponent implements OnDestroy, OnInit {
             this.cipherService.updateLastLaunchedDate(cipherId);
         }
 
-        this.platformUtilsService.eventTrack('Launched Login URI');
         this.platformUtilsService.launchUri(uri.launchUri);
     }
 
@@ -219,7 +216,6 @@ export class ViewComponent implements OnDestroy, OnInit {
             return;
         }
 
-        this.platformUtilsService.eventTrack('Copied ' + aType);
         const copyOptions = this.win != null ? { window: this.win } : null;
         this.platformUtilsService.copyToClipboard(value, copyOptions);
         this.platformUtilsService.showToast('info', null,
@@ -250,8 +246,22 @@ export class ViewComponent implements OnDestroy, OnInit {
             return;
         }
 
+        let url: string;
+        try {
+            const attachmentDownloadResponse = await this.apiService.getAttachmentData(this.cipher.id, attachment.id);
+            url = attachmentDownloadResponse.url;
+        } catch (e) {
+            if (e instanceof ErrorResponse && (e as ErrorResponse).statusCode === 404) {
+                url = attachment.url;
+            } else if (e instanceof ErrorResponse) {
+                throw new Error((e as ErrorResponse).getSingleMessage());
+            } else {
+                throw e;
+            }
+        }
+
         a.downloading = true;
-        const response = await fetch(new Request(attachment.url, { cache: 'no-store' }));
+        const response = await fetch(new Request(url, { cache: 'no-store' }));
         if (response.status !== 200) {
             this.platformUtilsService.showToast('error', null, this.i18nService.t('errorOccurred'));
             a.downloading = false;

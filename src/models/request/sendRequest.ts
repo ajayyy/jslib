@@ -7,6 +7,7 @@ import { Send } from '../domain/send';
 
 export class SendRequest {
     type: SendType;
+    fileLength?: number;
     name: string;
     notes: string;
     key: string;
@@ -17,9 +18,11 @@ export class SendRequest {
     file: SendFileApi;
     password: string;
     disabled: boolean;
+    hideEmail: boolean;
 
-    constructor(send: Send) {
+    constructor(send: Send, fileLength?: number) {
         this.type = send.type;
+        this.fileLength = fileLength;
         this.name = send.name ? send.name.encryptedString : null;
         this.notes = send.notes ? send.notes.encryptedString : null;
         this.maxAccessCount = send.maxAccessCount;
@@ -28,6 +31,7 @@ export class SendRequest {
         this.key = send.key != null ? send.key.encryptedString : null;
         this.password = send.password;
         this.disabled = send.disabled;
+        this.hideEmail = send.hideEmail;
 
         switch (this.type) {
             case SendType.Text:

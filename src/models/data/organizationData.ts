@@ -2,6 +2,7 @@ import { ProfileOrganizationResponse } from '../response/profileOrganizationResp
 
 import { OrganizationUserStatusType } from '../../enums/organizationUserStatusType';
 import { OrganizationUserType } from '../../enums/organizationUserType';
+import { PermissionsApi } from '../api/permissionsApi';
 
 export class OrganizationData {
     id: string;
@@ -25,6 +26,9 @@ export class OrganizationData {
     maxStorageGb?: number;
     ssoBound: boolean;
     identifier: string;
+    permissions: PermissionsApi;
+    resetPasswordKey: string;
+    userId: string;
 
     constructor(response: ProfileOrganizationResponse) {
         this.id = response.id;
@@ -48,5 +52,8 @@ export class OrganizationData {
         this.maxStorageGb = response.maxStorageGb;
         this.ssoBound = response.ssoBound;
         this.identifier = response.identifier;
+        this.permissions = response.permissions;
+        this.resetPasswordKey = response.resetPasswordKey;
+        this.userId = response.userId;
     }
 }

@@ -35,11 +35,7 @@ export class ExportComponent {
             return;
         }
 
-        const acceptedWarning = await this.platformUtilsService.showDialog(
-            this.i18nService.t(this.encryptedFormat ? 'encExportWarningDesc' : 'exportWarningDesc'),
-            this.i18nService.t('confirmVaultExport'), this.i18nService.t('exportVault'),
-            this.i18nService.t('cancel'), 'warning');
-
+        const acceptedWarning = await this.warningDialog();
         if (!acceptedWarning) {
             return;
         }
@@ -50,7 +46,6 @@ export class ExportComponent {
             try {
                 this.formPromise = this.getExportData();
                 const data = await this.formPromise;
-                this.platformUtilsService.eventTrack('Exported Data');
                 this.downloadFile(data);
                 this.saved();
                 await this.collectEvent();
@@ -61,8 +56,23 @@ export class ExportComponent {
         }
     }
 
+    async warningDialog() {
+        if (this.encryptedFormat) {
+            return await this.platformUtilsService.showDialog(
+                '<p>' + this.i18nService.t('encExportKeyWarningDesc') +
+                '<p>' + this.i18nService.t('encExportAccountWarningDesc'),
+                this.i18nService.t('confirmVaultExport'), this.i18nService.t('exportVault'),
+                this.i18nService.t('cancel'), 'warning',
+                true);
+        } else {
+            return await this.platformUtilsService.showDialog(
+                this.i18nService.t('exportWarningDesc'),
+                this.i18nService.t('confirmVaultExport'), this.i18nService.t('exportVault'),
+                this.i18nService.t('cancel'), 'warning');
+        }
+    }
+
     togglePassword() {
-        this.platformUtilsService.eventTrack('Toggled Master Password on Export');
         this.showPassword = !this.showPassword;
         document.getElementById('masterPassword').focus();
     }

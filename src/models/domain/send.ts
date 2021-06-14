@@ -8,8 +8,8 @@ import { SendData } from '../data/sendData';
 
 import { SendView } from '../view/sendView';
 
-import { CipherString } from './cipherString';
 import Domain from './domainBase';
+import { EncString } from './encString';
 import { SendFile } from './sendFile';
 import { SendText } from './sendText';
 
@@ -18,11 +18,11 @@ export class Send extends Domain {
     accessId: string;
     userId: string;
     type: SendType;
-    name: CipherString;
-    notes: CipherString;
+    name: EncString;
+    notes: EncString;
     file: SendFile;
     text: SendText;
-    key: CipherString;
+    key: EncString;
     maxAccessCount?: number;
     accessCount: number;
     revisionDate: Date;
@@ -30,6 +30,7 @@ export class Send extends Domain {
     deletionDate: Date;
     password: string;
     disabled: boolean;
+    hideEmail: boolean;
 
     constructor(obj?: SendData, alreadyEncrypted: boolean = false) {
         super();
@@ -54,6 +55,7 @@ export class Send extends Domain {
         this.revisionDate = obj.revisionDate != null ? new Date(obj.revisionDate) : null;
         this.deletionDate = obj.deletionDate != null ? new Date(obj.deletionDate) : null;
         this.expirationDate = obj.expirationDate != null ? new Date(obj.expirationDate) : null;
+        this.hideEmail = obj.hideEmail;
 
         switch (this.type) {
             case SendType.Text:
@@ -102,39 +104,5 @@ export class Send extends Domain {
         }
 
         return model;
-    }
-
-    toSendData(userId: string): SendData {
-        const s = new SendData();
-        s.id = this.id;
-        s.accessId = this.accessId;
-        s.userId = userId;
-        s.maxAccessCount = this.maxAccessCount;
-        s.accessCount = this.accessCount;
-        s.disabled = this.disabled;
-        s.password = this.password;
-        s.revisionDate = this.revisionDate != null ? this.revisionDate.toISOString() : null;
-        s.deletionDate = this.deletionDate != null ? this.deletionDate.toISOString() : null;
-        s.expirationDate = this.expirationDate != null ? this.expirationDate.toISOString() : null;
-        s.type = this.type;
-
-        this.buildDataModel(this, s, {
-            name: null,
-            notes: null,
-            key: null,
-        });
-
-        switch (s.type) {
-            case SendType.File:
-                s.text = this.text.toSendTextData();
-                break;
-            case SendType.Text:
-                s.file = this.file.toSendFileData();
-                break;
-            default:
-                break;
-        }
-
-        return s;
     }
 }

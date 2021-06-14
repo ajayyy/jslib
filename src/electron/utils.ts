@@ -1,3 +1,18 @@
+import { ipcRenderer } from 'electron';
+
+export type RendererMenuItem = {label?: string, type?: ('normal' | 'separator' | 'submenu' | 'checkbox' | 'radio'), click?: () => any};
+
+export function invokeMenu(menu: RendererMenuItem[]) {
+    const menuWithoutClick = menu.map(m => {
+        return { label: m.label, type: m.type };
+    });
+    ipcRenderer.invoke('openContextMenu', { menu: menuWithoutClick }).then((i: number) => {
+        if (i !== -1) {
+            menu[i].click();
+        }
+    });
+}
+
 export function isDev() {
     // ref: https://github.com/sindresorhus/electron-is-dev
     if ('ELECTRON_IS_DEV' in process.env) {
@@ -16,11 +31,12 @@ export function isMacAppStore() {
 
 export function isWindowsStore() {
     const isWindows = process.platform === 'win32';
-    if (isWindows && !process.windowsStore &&
+    let windowsStore = process.windowsStore;
+    if (isWindows && !windowsStore &&
         process.resourcesPath.indexOf('8bitSolutionsLLC.bitwardendesktop_') > -1) {
-        process.windowsStore = true;
+        windowsStore = true;
     }
-    return isWindows && process.windowsStore && process.windowsStore === true;
+    return isWindows && windowsStore === true;
 }
 
 export function isSnapStore() {

@@ -2,6 +2,7 @@ import { BaseResponse } from './baseResponse';
 
 import { OrganizationUserStatusType } from '../../enums/organizationUserStatusType';
 import { OrganizationUserType } from '../../enums/organizationUserType';
+import { PermissionsApi } from '../api/permissionsApi';
 
 export class ProfileOrganizationResponse extends BaseResponse {
     id: string;
@@ -26,6 +27,9 @@ export class ProfileOrganizationResponse extends BaseResponse {
     enabled: boolean;
     ssoBound: boolean;
     identifier: string;
+    permissions: PermissionsApi;
+    resetPasswordKey: string;
+    userId: string;
 
     constructor(response: any) {
         super(response);
@@ -51,5 +55,8 @@ export class ProfileOrganizationResponse extends BaseResponse {
         this.enabled = this.getResponseProperty('Enabled');
         this.ssoBound = this.getResponseProperty('SsoBound');
         this.identifier = this.getResponseProperty('Identifier');
+        this.permissions = new PermissionsApi(this.getResponseProperty('permissions'));
+        this.resetPasswordKey = this.getResponseProperty('ResetPasswordKey');
+        this.userId = this.getResponseProperty('UserId');
     }
 }

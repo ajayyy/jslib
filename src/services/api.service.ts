@@ -7,6 +7,7 @@ import { TokenService } from '../abstractions/token.service';
 
 import { EnvironmentUrls } from '../models/domain/environmentUrls';
 
+import { AttachmentRequest } from '../models/request/attachmentRequest';
 import { BitPayInvoiceRequest } from '../models/request/bitPayInvoiceRequest';
 import { CipherBulkDeleteRequest } from '../models/request/cipherBulkDeleteRequest';
 import { CipherBulkMoveRequest } from '../models/request/cipherBulkMoveRequest';
@@ -40,6 +41,7 @@ import { OrganizationUpgradeRequest } from '../models/request/organizationUpgrad
 import { OrganizationUserAcceptRequest } from '../models/request/organizationUserAcceptRequest';
 import { OrganizationUserConfirmRequest } from '../models/request/organizationUserConfirmRequest';
 import { OrganizationUserInviteRequest } from '../models/request/organizationUserInviteRequest';
+import { OrganizationUserResetPasswordEnrollmentRequest } from '../models/request/organizationUserResetPasswordEnrollmentRequest';
 import { OrganizationUserUpdateGroupsRequest } from '../models/request/organizationUserUpdateGroupsRequest';
 import { OrganizationUserUpdateRequest } from '../models/request/organizationUserUpdateRequest';
 import { PasswordHintRequest } from '../models/request/passwordHintRequest';
@@ -66,14 +68,17 @@ import { UpdateProfileRequest } from '../models/request/updateProfileRequest';
 import { UpdateTwoFactorAuthenticatorRequest } from '../models/request/updateTwoFactorAuthenticatorRequest';
 import { UpdateTwoFactorDuoRequest } from '../models/request/updateTwoFactorDuoRequest';
 import { UpdateTwoFactorEmailRequest } from '../models/request/updateTwoFactorEmailRequest';
-import { UpdateTwoFactorU2fDeleteRequest } from '../models/request/updateTwoFactorU2fDeleteRequest';
-import { UpdateTwoFactorU2fRequest } from '../models/request/updateTwoFactorU2fRequest';
+import { UpdateTwoFactorWebAuthnDeleteRequest } from '../models/request/updateTwoFactorWebAuthnDeleteRequest';
+import { UpdateTwoFactorWebAuthnRequest } from '../models/request/updateTwoFactorWebAuthnRequest';
 import { UpdateTwoFactorYubioOtpRequest } from '../models/request/updateTwoFactorYubioOtpRequest';
 import { VerifyBankRequest } from '../models/request/verifyBankRequest';
 import { VerifyDeleteRecoverRequest } from '../models/request/verifyDeleteRecoverRequest';
 import { VerifyEmailRequest } from '../models/request/verifyEmailRequest';
 
+import { Utils } from '../misc/utils';
 import { ApiKeyResponse } from '../models/response/apiKeyResponse';
+import { AttachmentResponse } from '../models/response/attachmentResponse';
+import { AttachmentUploadDataResponse } from '../models/response/attachmentUploadDataResponse';
 import { BillingResponse } from '../models/response/billingResponse';
 import { BreachAccountResponse } from '../models/response/breachAccountResponse';
 import { CipherResponse } from '../models/response/cipherResponse';
@@ -111,6 +116,8 @@ import { PreloginResponse } from '../models/response/preloginResponse';
 import { ProfileResponse } from '../models/response/profileResponse';
 import { SelectionReadOnlyResponse } from '../models/response/selectionReadOnlyResponse';
 import { SendAccessResponse } from '../models/response/sendAccessResponse';
+import { SendFileDownloadDataResponse } from '../models/response/sendFileDownloadDataResponse';
+import { SendFileUploadDataResponse } from '../models/response/sendFileUploadDataResponse';
 import { SendResponse } from '../models/response/sendResponse';
 import { SubscriptionResponse } from '../models/response/subscriptionResponse';
 import { SyncResponse } from '../models/response/syncResponse';
@@ -121,12 +128,12 @@ import { TwoFactorDuoResponse } from '../models/response/twoFactorDuoResponse';
 import { TwoFactorEmailResponse } from '../models/response/twoFactorEmailResponse';
 import { TwoFactorProviderResponse } from '../models/response/twoFactorProviderResponse';
 import { TwoFactorRecoverResponse } from '../models/response/twoFactorRescoverResponse';
-import {
-    ChallengeResponse,
-    TwoFactorU2fResponse,
-} from '../models/response/twoFactorU2fResponse';
+import { TwoFactorWebAuthnResponse } from '../models/response/twoFactorWebAuthnResponse';
+import { ChallengeResponse } from '../models/response/twoFactorWebAuthnResponse';
 import { TwoFactorYubiKeyResponse } from '../models/response/twoFactorYubiKeyResponse';
 import { UserKeyResponse } from '../models/response/userKeyResponse';
+
+import { SendAccessView } from '../models/view/sendAccessView';
 
 export class ApiService implements ApiServiceAbstraction {
     urlsSet: boolean = false;
@@ -410,9 +417,15 @@ export class ApiService implements ApiServiceAbstraction {
         return new SendResponse(r);
     }
 
-    async postSendAccess(id: string, request: SendAccessRequest): Promise<SendAccessResponse> {
-        const r = await this.send('POST', '/sends/access/' + id, request, false, true);
+    async postSendAccess(id: string, request: SendAccessRequest, apiUrl?: string): Promise<SendAccessResponse> {
+        const r = await this.send('POST', '/sends/access/' + id, request, false, true, apiUrl);
         return new SendAccessResponse(r);
+    }
+
+
+    async getSendFileDownloadData(send: SendAccessView, request: SendAccessRequest, apiUrl?: string): Promise<SendFileDownloadDataResponse> {
+        const r = await this.send('POST', '/sends/' + send.id + '/access/file/' + send.file.id, request, false, true, apiUrl);
+        return new SendFileDownloadDataResponse(r);
     }
 
     async getSends(): Promise<ListResponse<SendResponse>> {
@@ -425,7 +438,25 @@ export class ApiService implements ApiServiceAbstraction {
         return new SendResponse(r);
     }
 
-    async postSendFile(data: FormData): Promise<SendResponse> {
+    async postFileTypeSend(request: SendRequest): Promise<SendFileUploadDataResponse> {
+        const r = await this.send('POST', '/sends/file/v2', request, true, true);
+        return new SendFileUploadDataResponse(r);
+    }
+
+    async renewSendFileUploadUrl(sendId: string, fileId: string): Promise<SendFileUploadDataResponse> {
+        const r = await this.send('GET', '/sends/' + sendId + '/file/' + fileId, null, true, true);
+        return new SendFileUploadDataResponse(r);
+    }
+
+    postSendFile(sendId: string, fileId: string, data: FormData): Promise<any> {
+        return this.send('POST', '/sends/' + sendId + '/file/' + fileId, data, true, false);
+    }
+
+    /**
+     * @deprecated Mar 25 2021: This method has been deprecated in favor of direct uploads.
+     * This method still exists for backward compatibility with old server versions.
+     */
+    async postSendFileLegacy(data: FormData): Promise<SendResponse> {
         const r = await this.send('POST', '/sends/file', data, true, true);
         return new SendResponse(r);
     }
@@ -556,26 +587,50 @@ export class ApiService implements ApiServiceAbstraction {
         return this.send('PUT', '/ciphers/delete-admin', request, true, false);
     }
 
-    putRestoreCipher(id: string): Promise<any> {
-        return this.send('PUT', '/ciphers/' + id + '/restore', null, true, false);
+    async putRestoreCipher(id: string): Promise<CipherResponse> {
+        const r = await this.send('PUT', '/ciphers/' + id + '/restore', null, true, true);
+        return new CipherResponse(r);
     }
 
-    putRestoreCipherAdmin(id: string): Promise<any> {
-        return this.send('PUT', '/ciphers/' + id + '/restore-admin', null, true, false);
+    async putRestoreCipherAdmin(id: string): Promise<CipherResponse> {
+        const r = await this.send('PUT', '/ciphers/' + id + '/restore-admin', null, true, true);
+        return new CipherResponse(r);
     }
 
-    putRestoreManyCiphers(request: CipherBulkDeleteRequest): Promise<any> {
-        return this.send('PUT', '/ciphers/restore', request, true, false);
+    async putRestoreManyCiphers(request: CipherBulkDeleteRequest): Promise<ListResponse<CipherResponse>> {
+        const r = await this.send('PUT', '/ciphers/restore', request, true, true);
+        return new ListResponse<CipherResponse>(r, CipherResponse);
     }
 
     // Attachments APIs
 
-    async postCipherAttachment(id: string, data: FormData): Promise<CipherResponse> {
+    async getAttachmentData(cipherId: string, attachmentId: string, emergencyAccessId?: string): Promise<AttachmentResponse> {
+        const path = (emergencyAccessId != null ?
+            '/emergency-access/' + emergencyAccessId + '/' :
+            '/ciphers/') + cipherId + '/attachment/' + attachmentId;
+        const r = await this.send('GET', path, null, true, true);
+        return new AttachmentResponse(r);
+    }
+
+    async postCipherAttachment(id: string, request: AttachmentRequest): Promise<AttachmentUploadDataResponse> {
+        const r = await this.send('POST', '/ciphers/' + id + '/attachment/v2', request, true, true);
+        return new AttachmentUploadDataResponse(r);
+    }
+
+    /**
+     * @deprecated Mar 25 2021: This method has been deprecated in favor of direct uploads.
+     * This method still exists for backward compatibility with old server versions.
+     */
+    async postCipherAttachmentLegacy(id: string, data: FormData): Promise<CipherResponse> {
         const r = await this.send('POST', '/ciphers/' + id + '/attachment', data, true, true);
         return new CipherResponse(r);
     }
 
-    async postCipherAttachmentAdmin(id: string, data: FormData): Promise<CipherResponse> {
+    /**
+     * @deprecated Mar 25 2021: This method has been deprecated in favor of direct uploads.
+     * This method still exists for backward compatibility with old server versions.
+     */
+    async postCipherAttachmentAdminLegacy(id: string, data: FormData): Promise<CipherResponse> {
         const r = await this.send('POST', '/ciphers/' + id + '/attachment-admin', data, true, true);
         return new CipherResponse(r);
     }
@@ -592,6 +647,15 @@ export class ApiService implements ApiServiceAbstraction {
         organizationId: string): Promise<any> {
         return this.send('POST', '/ciphers/' + id + '/attachment/' +
             attachmentId + '/share?organizationId=' + organizationId, data, true, false);
+    }
+
+    async renewAttachmentUploadUrl(id: string, attachmentId: string): Promise<AttachmentUploadDataResponse> {
+        const r = await this.send('GET', '/ciphers/' + id + '/attachment/' + attachmentId + '/renew', null, true, true);
+        return new AttachmentUploadDataResponse(r);
+    }
+
+    postAttachmentFile(id: string, attachmentId: string, data: FormData): Promise<any> {
+        return this.send('POST', '/ciphers/' + id + '/attachment/' + attachmentId, data, true, false);
     }
 
     // Collections APIs
@@ -757,6 +821,12 @@ export class ApiService implements ApiServiceAbstraction {
         return this.send('PUT', '/organizations/' + organizationId + '/users/' + id + '/groups', request, true, false);
     }
 
+    putOrganizationUserResetPasswordEnrollment(organizationId: string, userId: string,
+        request: OrganizationUserResetPasswordEnrollmentRequest): Promise<any> {
+        return this.send('PUT', '/organizations/' + organizationId + '/users/' + userId + '/reset-password-enrollment',
+            request, true, false);
+    }
+
     deleteOrganizationUser(organizationId: string, id: string): Promise<any> {
         return this.send('DELETE', '/organizations/' + organizationId + '/users/' + id, null, true, false);
     }
@@ -836,13 +906,13 @@ export class ApiService implements ApiServiceAbstraction {
         return new TwoFactorYubiKeyResponse(r);
     }
 
-    async getTwoFactorU2f(request: PasswordVerificationRequest): Promise<TwoFactorU2fResponse> {
-        const r = await this.send('POST', '/two-factor/get-u2f', request, true, true);
-        return new TwoFactorU2fResponse(r);
+    async getTwoFactorWebAuthn(request: PasswordVerificationRequest): Promise<TwoFactorWebAuthnResponse> {
+        const r = await this.send('POST', '/two-factor/get-webauthn', request, true, true);
+        return new TwoFactorWebAuthnResponse(r);
     }
 
-    async getTwoFactorU2fChallenge(request: PasswordVerificationRequest): Promise<ChallengeResponse> {
-        const r = await this.send('POST', '/two-factor/get-u2f-challenge', request, true, true);
+    async getTwoFactorWebAuthnChallenge(request: PasswordVerificationRequest): Promise<ChallengeResponse> {
+        const r = await this.send('POST', '/two-factor/get-webauthn-challenge', request, true, true);
         return new ChallengeResponse(r);
     }
 
@@ -878,14 +948,28 @@ export class ApiService implements ApiServiceAbstraction {
         return new TwoFactorYubiKeyResponse(r);
     }
 
-    async putTwoFactorU2f(request: UpdateTwoFactorU2fRequest): Promise<TwoFactorU2fResponse> {
-        const r = await this.send('PUT', '/two-factor/u2f', request, true, true);
-        return new TwoFactorU2fResponse(r);
+    async putTwoFactorWebAuthn(request: UpdateTwoFactorWebAuthnRequest): Promise<TwoFactorWebAuthnResponse> {
+        const response = request.deviceResponse.response as AuthenticatorAttestationResponse;
+        const data: any = Object.assign({}, request);
+
+        data.deviceResponse = {
+            id: request.deviceResponse.id,
+            rawId: btoa(request.deviceResponse.id),
+            type: request.deviceResponse.type,
+            extensions: request.deviceResponse.getClientExtensionResults(),
+            response: {
+                AttestationObject: Utils.fromBufferToB64(response.attestationObject),
+                clientDataJson: Utils.fromBufferToB64(response.clientDataJSON),
+            },
+        };
+
+        const r = await this.send('PUT', '/two-factor/webauthn', data, true, true);
+        return new TwoFactorWebAuthnResponse(r);
     }
 
-    async deleteTwoFactorU2f(request: UpdateTwoFactorU2fDeleteRequest): Promise<TwoFactorU2fResponse> {
-        const r = await this.send('DELETE', '/two-factor/u2f', request, true, true);
-        return new TwoFactorU2fResponse(r);
+    async deleteTwoFactorWebAuthn(request: UpdateTwoFactorWebAuthnDeleteRequest): Promise<TwoFactorWebAuthnResponse> {
+        const r = await this.send('DELETE', '/two-factor/webauthn', request, true, true);
+        return new TwoFactorWebAuthnResponse(r);
     }
 
     async putTwoFactorDisable(request: TwoFactorProviderRequest): Promise<TwoFactorProviderResponse> {
@@ -927,6 +1011,11 @@ export class ApiService implements ApiServiceAbstraction {
     async getEmergencyAccess(id: string): Promise<EmergencyAccessGranteeDetailsResponse> {
         const r = await this.send('GET', '/emergency-access/' + id, null, true, true);
         return new EmergencyAccessGranteeDetailsResponse(r);
+    }
+
+    async getEmergencyGrantorPolicies(id: string): Promise<ListResponse<PolicyResponse>> {
+        const r = await this.send('GET', '/emergency-access/' + id + '/policies', null, true, true);
+        return new ListResponse(r, PolicyResponse);
     }
 
     putEmergencyAccess(id: string, request: EmergencyAccessUpdateRequest): Promise<any> {
@@ -1207,7 +1296,8 @@ export class ApiService implements ApiServiceAbstraction {
     }
 
     private async send(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, body: any,
-        authed: boolean, hasResponse: boolean): Promise<any> {
+        authed: boolean, hasResponse: boolean, apiUrl?: string): Promise<any> {
+        apiUrl = Utils.isNullOrWhitespace(apiUrl) ? this.apiBaseUrl : apiUrl;
         const headers = new Headers({
             'Device-Type': this.deviceType,
         });
@@ -1243,7 +1333,7 @@ export class ApiService implements ApiServiceAbstraction {
         }
 
         requestInit.headers = headers;
-        const response = await this.fetch(new Request(this.apiBaseUrl + path, requestInit));
+        const response = await this.fetch(new Request(apiUrl + path, requestInit));
 
         if (hasResponse && response.status === 200) {
             const responseJson = await response.json();
@@ -1263,6 +1353,8 @@ export class ApiService implements ApiServiceAbstraction {
         let responseJson: any = null;
         if (this.isJsonResponse(response)) {
             responseJson = await response.json();
+        } else if (this.isTextResponse(response)) {
+            responseJson = { Message: await response.text() };
         }
 
         return new ErrorResponse(responseJson, response.status, tokenError);
@@ -1307,13 +1399,13 @@ export class ApiService implements ApiServiceAbstraction {
     }
 
     private qsStringify(params: any): string {
-        return Object.keys(params).map((key) => {
+        return Object.keys(params).map(key => {
             return encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
         }).join('&');
     }
 
     private getCredentials(): RequestCredentials {
-        if (this.device !== DeviceType.SafariExtension && (!this.isWebClient || this.usingBaseUrl)) {
+        if (!this.isWebClient || this.usingBaseUrl) {
             return 'include';
         }
         return undefined;
@@ -1337,5 +1429,10 @@ export class ApiService implements ApiServiceAbstraction {
     private isJsonResponse(response: Response): boolean {
         const typeHeader = response.headers.get('content-type');
         return typeHeader != null && typeHeader.indexOf('application/json') > -1;
+    }
+
+    private isTextResponse(response: Response): boolean {
+        const typeHeader = response.headers.get('content-type');
+        return typeHeader != null && typeHeader.indexOf('text') > -1;
     }
 }
